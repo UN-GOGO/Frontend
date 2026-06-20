@@ -11,7 +11,7 @@ export const signupSchema = z
   .object({
     name: z.string().trim().min(1, "이름을 입력해 주세요."),
     email: z.email({ error: "올바른 이메일 형식이 아니에요." }),
-    pw: z.string().min(8, "비밀번호는 8자 이상이어야 해요."),
+    pw: z.string().min(6, "비밀번호는 6자 이상이어야 해요."),
     pw2: z.string().min(1, "비밀번호를 한 번 더 입력해 주세요."),
     tos: z.boolean(),
     privacy: z.boolean(),
@@ -31,3 +31,8 @@ export const signupSchema = z
   });
 
 export type SignupValues = z.infer<typeof signupSchema>;
+
+export const otpSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{8}$/, "8자리 숫자를 입력해 주세요.");

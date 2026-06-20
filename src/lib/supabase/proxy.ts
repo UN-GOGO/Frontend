@@ -28,7 +28,62 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getClaims();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  const protectedPrefixes = [
+    "/chat",
+    "/cv",
+    "/gap",
+    "/jobs",
+    "/mypage",
+    "/notifications",
+    "/profile",
+    "/settings",
+  ];
+  const isProtected = protectedPrefixes.some((p) => pathname.startsWith(p));
+  const isOnboardingRoute = pathname.startsWith("/onboarding");
+  const isAuthRoute = pathname === "/login" || pathname === "/signup";
+
+  let isOnboarded = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarded")
+      .eq("id", user.id)
+      .maybeSingle();
+    isOnboarded = Boolean(profile?.onboarded);
+  }
+
+  const redirectTo = (path: string) => {
+    const url = request.nextUrl.clone();
+    url.pathname = path;
+    return NextResponse.redirect(url);
+  };
+
+  if (!user) {
+    if (isProtected || isOnboardingRoute) {
+      return redirectTo("/login");
+    }
+    return supabaseResponse;
+  }
+
+  if (!isOnboarded) {
+    if (isOnboardingRoute) {
+      return supabaseResponse;
+    }
+    if (isProtected || isAuthRoute) {
+      return redirectTo("/onboarding");
+    }
+    return supabaseResponse;
+  }
+
+  if (isAuthRoute || isOnboardingRoute) {
+    return redirectTo("/mypage");
+  }
 
   return supabaseResponse;
 }
