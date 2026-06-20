@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 
 type Step = {
   title: string;
@@ -100,10 +101,32 @@ const STEPS: Step[] = [
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const isLast = step === STEPS.length - 1;
 
-  // 스킵 또는 완료 → 프로필 입력 화면으로 (현재는 홈으로)
-  const finish = () => router.push("/");
+  const finish = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ onboarded: true })
+        .eq("id", user.id);
+
+      if (error) {
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    router.push("/");
+  };
 
   const next = () => (isLast ? finish() : setStep((s) => s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
@@ -129,7 +152,8 @@ export default function OnboardingPage() {
         <button
           type="button"
           onClick={finish}
-          className="text-muted-foreground text-[13px] font-bold whitespace-nowrap"
+          disabled={submitting}
+          className="text-muted-foreground text-[13px] font-bold whitespace-nowrap disabled:opacity-50"
         >
           나중에 하기
         </button>
@@ -165,6 +189,7 @@ export default function OnboardingPage() {
             )}
             <Button
               onClick={next}
+              disabled={submitting}
               className="h-auto flex-1 rounded-xl py-3.25 font-extrabold hover:bg-[#243152]"
             >
               {isLast ? "시작하기" : "다음"}

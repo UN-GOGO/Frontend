@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,12 @@ import {
 } from "@/components/ui/social-icons";
 import { createClient } from "@/lib/supabase/client";
 import { signInWithProvider, type OAuthProvider } from "@/lib/supabase/oauth";
-import { signupSchema, type SignupValues } from "@/lib/validations/auth";
+import { sendSignupOtp, verifySignupOtp } from "@/lib/supabase/otp";
+import {
+  otpSchema,
+  signupSchema,
+  type SignupValues,
+} from "@/lib/validations/auth";
 import { TermRow } from "@/components/auth/term-row";
 
 export default function SignupPage() {
@@ -47,7 +53,17 @@ export default function SignupPage() {
   const [showPw, setShowPw] = useState(false);
   const [showPw2, setShowPw2] = useState(false);
 
-  // 약관 동의 (항목별 + 전체동의)
+  const email = useWatch({ control, name: "email" });
+  const [otpStatus, setOtpStatus] = useState<"idle" | "sent" | "verified">(
+    "idle",
+  );
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  const emailValid = z.email().safeParse(email?.trim() ?? "").success;
+
   const tos = useWatch({ control, name: "tos" });
   const privacy = useWatch({ control, name: "privacy" });
   const marketing = useWatch({ control, name: "marketing" });
@@ -69,24 +85,76 @@ export default function SignupPage() {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!emailValid || sending) return;
+    setSending(true);
+    setOtpError(null);
+    const { error } = await sendSignupOtp(email.trim());
+    setSending(false);
+    if (error) {
+      setOtpError("인증번호 전송에 실패했어요. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+    setOtpStatus("sent");
+  };
+
+  const handleVerifyOtp = async () => {
+    if (verifying) return;
+    if (!otpSchema.safeParse(otp).success) {
+      setOtpError("8자리 숫자를 입력해 주세요.");
+      return;
+    }
+    setVerifying(true);
+    setOtpError(null);
+    const { isExistingAccount, error } = await verifySignupOtp(
+      email.trim(),
+      otp,
+    );
+    setVerifying(false);
+    if (error) {
+      setOtpError("인증번호가 올바르지 않거나 만료됐어요. 다시 받아 주세요.");
+      return;
+    }
+    if (isExistingAccount) {
+      setOtpStatus("idle");
+      setOtp("");
+      setError("email", { message: "이미 가입된 이메일이에요." });
+      return;
+    }
+    setOtpStatus("verified");
+  };
+
   const onSubmit = async (values: SignupValues) => {
+    if (otpStatus !== "verified") {
+      setError("root", { message: "이메일 인증을 먼저 완료해 주세요." });
+      return;
+    }
+
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email: values.email.trim(),
+    const { data, error } = await supabase.auth.updateUser({
       password: values.pw,
-      options: {
-        data: {
-          name: values.name.trim(),
-          marketing_opt_in: values.marketing,
-        },
+      data: {
+        name: values.name.trim(),
+        marketing_opt_in: values.marketing,
       },
     });
 
-    if (error) {
-      const message = /already|registered|exists/i.test(error.message)
-        ? "이미 가입된 이메일이에요."
-        : "가입에 실패했어요. 잠시 후 다시 시도해 주세요.";
-      setError("email", { message });
+    if (error || !data.user) {
+      setError("root", {
+        message: "가입에 실패했어요. 잠시 후 다시 시도해 주세요.",
+      });
+      return;
+    }
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ onboarded: true })
+      .eq("id", data.user.id);
+
+    if (profileError) {
+      setError("root", {
+        message: "가입에 실패했어요. 잠시 후 다시 시도해 주세요.",
+      });
       return;
     }
 
@@ -169,19 +237,80 @@ export default function SignupPage() {
               )}
             </div>
 
-            {/* 이메일 */}
+            {/* 이메일 + 인증번호 받기 */}
             <div className="flex flex-col gap-1.5">
-              <Input
-                type="email"
-                placeholder="이메일"
-                autoComplete="email"
-                aria-invalid={!!errors.email}
-                {...register("email")}
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="이메일"
+                  autoComplete="email"
+                  readOnly={otpStatus === "verified"}
+                  aria-invalid={!!errors.email}
+                  className="flex-1"
+                  {...register("email")}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendOtp}
+                  disabled={!emailValid || sending || otpStatus === "verified"}
+                  className="h-auto shrink-0 px-3 text-xs font-extrabold"
+                >
+                  {otpStatus === "verified"
+                    ? "인증 완료"
+                    : otpStatus === "sent"
+                      ? "재전송"
+                      : "인증번호 받기"}
+                </Button>
+              </div>
               {errors.email && (
                 <span className="text-destructive text-xs" role="alert">
                   {errors.email.message}
                 </span>
+              )}
+
+              {/* OTP 입력칸 (발송 후 등장) */}
+              {otpStatus !== "idle" && (
+                <div className="mt-1 flex flex-col gap-1.5">
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={8}
+                      placeholder="인증번호 8자리"
+                      value={otp}
+                      onChange={(e) =>
+                        setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))
+                      }
+                      readOnly={otpStatus === "verified"}
+                      aria-invalid={!!otpError}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleVerifyOtp}
+                      disabled={
+                        verifying ||
+                        otp.length !== 8 ||
+                        otpStatus === "verified"
+                      }
+                      className="h-auto shrink-0 px-3 text-xs font-extrabold"
+                    >
+                      {otpStatus === "verified" ? "✓ 인증됨" : "확인"}
+                    </Button>
+                  </div>
+                  {otpError && (
+                    <span className="text-destructive text-xs" role="alert">
+                      {otpError}
+                    </span>
+                  )}
+                  {otpStatus === "verified" && (
+                    <span className="text-xs text-green-600" role="status">
+                      이메일 인증이 완료됐어요.
+                    </span>
+                  )}
+                </div>
               )}
             </div>
 
@@ -276,7 +405,7 @@ export default function SignupPage() {
             {/* 가입 CTA */}
             <Button
               type="submit"
-              disabled={!requiredOk || isSubmitting}
+              disabled={!requiredOk || otpStatus !== "verified" || isSubmitting}
               className="mt-1.5 h-auto w-full gap-2 rounded-[11px] p-3 font-extrabold hover:bg-[#243152] disabled:cursor-not-allowed disabled:bg-[#AEB6C7] disabled:opacity-100"
             >
               {isSubmitting && (
