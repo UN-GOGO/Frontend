@@ -1,3 +1,10 @@
 allowBuilds:
   sharp: true
   unrs-resolver: true
+
+# react-hook-form/@hookform/resolvers의 zod 타입이 shadcn(devDep)가 끌어온
+# zod 3.25.76에 묶여 충돌하므로, 카탈로그로 단일 버전을 강제한다.
+catalog:
+  zod: ^4.4.3
+overrides:
+  zod: "catalog:"
