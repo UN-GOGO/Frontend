@@ -179,7 +179,7 @@ export default function LoginPage() {
           {/* 둘러보기 / 회원가입 */}
           <div className="mt-[18px] flex flex-col items-center gap-3">
             <Link
-              href="/chat"
+              href="/compass"
               className="text-muted-foreground text-[13px] font-bold underline underline-offset-[3px]"
             >
               먼저 둘러보기
