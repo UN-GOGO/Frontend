@@ -20,7 +20,7 @@ export function Sidebar({
   const pathname = usePathname();
 
   return (
-    <nav className="border-border bg-card hidden w-[244px] shrink-0 flex-col gap-1 overflow-y-auto border-r p-3 md:flex">
+    <nav className="border-border bg-card hidden h-screen w-[244px] shrink-0 flex-col gap-1 overflow-y-auto border-r p-3 md:flex">
       {nav.map(({ href, labelKey, icon: Icon }) => {
         const active = isActive(pathname, href);
         return (
