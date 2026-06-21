@@ -35,14 +35,12 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const protectedPrefixes = [
-    "/chat",
-    "/cv",
-    "/gap",
+    "/compass",
     "/jobs",
+    "/insight",
     "/mypage",
     "/notifications",
     "/profile",
-    "/settings",
   ];
   const isProtected = protectedPrefixes.some((p) => pathname.startsWith(p));
   const isOnboardingRoute = pathname.startsWith("/onboarding");

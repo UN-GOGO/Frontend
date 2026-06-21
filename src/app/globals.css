@@ -67,6 +67,7 @@
   --input: #e6edf2;
   --ring: #6d5bd0;
 
+  /* "point" = violet (CTA / 적합도 / AI accent) */
   --point: #6d5bd0;
   --point-foreground: #ffffff;
   --point-hover: #5a49b8;
@@ -114,5 +115,15 @@
   }
   to {
     transform: scaleX(1);
+  }
+}
+@keyframes pol-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pol-orbit {
+  to {
+    transform: rotate(360deg);
   }
 }
