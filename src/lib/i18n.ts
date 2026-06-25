@@ -8,6 +8,7 @@ export const shellStrings = {
   navCompass: "나침반",
   navOpportunities: "기회",
   navInsight: "인사이트",
+  navChat: "챗봇",
   navNotif: "알림",
   navMy: "마이",
   // aria
