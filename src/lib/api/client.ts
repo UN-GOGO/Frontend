@@ -15,6 +15,21 @@ async function authHeader(): Promise<Record<string, string>> {
   }
 }
 
+export async function apiGet<TRes>(
+  path: string,
+  init?: { signal?: AbortSignal },
+): Promise<TRes> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "GET",
+    headers: { ...(await authHeader()) },
+    signal: init?.signal,
+  });
+  if (!res.ok) {
+    throw new Error(`API ${path} 실패 (${res.status})`);
+  }
+  return (await res.json()) as TRes;
+}
+
 export async function apiPost<TReq, TRes>(
   path: string,
   body: TReq,
@@ -22,6 +37,26 @@ export async function apiPost<TReq, TRes>(
 ): Promise<TRes> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authHeader()),
+    },
+    body: JSON.stringify(body),
+    signal: init?.signal,
+  });
+  if (!res.ok) {
+    throw new Error(`API ${path} 실패 (${res.status})`);
+  }
+  return (await res.json()) as TRes;
+}
+
+export async function apiPut<TReq, TRes>(
+  path: string,
+  body: TReq,
+  init?: { signal?: AbortSignal },
+): Promise<TRes> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
       ...(await authHeader()),
