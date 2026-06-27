@@ -1,10 +1,12 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { QUESTIONS } from "@/lib/navigator/questions";
 import type { Answer } from "@/lib/navigator/types";
+import { cn } from "@/lib/utils";
 
 export function Quiz({
   onFinish,
@@ -31,18 +33,19 @@ export function Quiz({
   const back = () => (cur === 0 ? onExit() : setCur((c) => c - 1));
 
   return (
-    <div className="animate-[pol-up_0.35s_ease]">
+    <div className="mx-auto max-w-[680px] animate-[pol-up_0.35s_ease]">
       {/* 진행 표시 */}
       <div className="mb-4">
-        <div className="text-muted-foreground mb-1 flex justify-between text-xs">
-          <span>
-            {cur + 1} / {QUESTIONS.length}
+        <div className="mb-1.5 flex items-center justify-between text-xs font-semibold">
+          <span className="text-point-hover tabular-nums">
+            {cur + 1}
+            <span className="text-muted-foreground"> / {QUESTIONS.length}</span>
           </span>
-          <span>나침반 진단</span>
+          <span className="text-muted-foreground">나침반 진단</span>
         </div>
-        <div className="bg-secondary h-1.5 rounded-full">
+        <div className="bg-secondary h-2 overflow-hidden rounded-full">
           <div
-            className="bg-point h-1.5 rounded-full transition-all"
+            className="bg-point h-full rounded-full transition-all duration-300"
             style={{ width: `${((cur + 1) / QUESTIONS.length) * 100}%` }}
           />
         </div>
@@ -50,9 +53,11 @@ export function Quiz({
 
       <div
         key={cur}
-        className="bg-card border-border animate-[pol-up_0.3s_ease] rounded-[18px] border p-6"
+        className="bg-card border-border animate-[pol-up_0.3s_ease] rounded-[18px] border p-6 sm:p-7"
       >
-        <h2 className="text-foreground mb-5 text-lg font-bold">{Q.q}</h2>
+        <h2 className="text-foreground mb-5 text-lg leading-snug font-extrabold tracking-tight text-balance">
+          {Q.q}
+        </h2>
 
         {Q.type === "text" ? (
           <TextStep
@@ -97,7 +102,7 @@ export function Quiz({
       <button
         type="button"
         onClick={back}
-        className="text-muted-foreground hover:text-foreground mt-3 text-xs"
+        className="text-muted-foreground hover:text-foreground mt-3 text-xs font-semibold"
       >
         ← {cur === 0 ? "기본 정보로" : "이전"}
       </button>
@@ -106,9 +111,23 @@ export function Quiz({
 }
 
 const optBase =
-  "w-full rounded-xl border px-4 py-3 text-left text-sm transition";
+  "flex w-full items-center gap-3 rounded-xl border px-4 py-3.5 text-left text-sm font-medium transition";
 const optOn = "border-point bg-point-soft text-foreground";
-const optOff = "border-border hover:border-point-border";
+const optOff = "border-border hover:border-point-border text-foreground";
+
+function Indicator({ on, square }: { on: boolean; square?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "flex size-5 shrink-0 items-center justify-center border transition",
+        square ? "rounded-md" : "rounded-full",
+        on ? "border-point bg-point text-white" : "border-border bg-white",
+      )}
+    >
+      {on && <Check className="size-3.5" strokeWidth={3} />}
+    </span>
+  );
+}
 
 function SingleStep({
   opts,
@@ -120,14 +139,15 @@ function SingleStep({
   onPick: (i: number) => void;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
       {opts.map((o, i) => (
         <button
           key={i}
           type="button"
           onClick={() => onPick(i)}
-          className={`${optBase} ${value === i ? optOn : optOff}`}
+          className={cn(optBase, value === i ? optOn : optOff)}
         >
+          <Indicator on={value === i} />
           {o.t}
         </button>
       ))}
@@ -158,30 +178,35 @@ function MultiStep({
     onChange(arr);
   };
   return (
-    <div className="space-y-2">
-      {opts.map((o, i) => {
-        const on = value.includes(i);
-        return (
-          <button
-            key={i}
-            type="button"
-            onClick={() => toggle(i)}
-            className={`${optBase} ${on ? optOn : optOff}`}
-          >
-            <span className="mr-2">{on ? "☑" : "☐"}</span>
-            {o.t}
-          </button>
-        );
-      })}
-      <div className="pt-2">
-        <Button
-          onClick={onNext}
-          disabled={value.length === 0}
-          className="bg-point h-auto w-full rounded-xl py-3 font-semibold hover:bg-[var(--point-hover)]"
-        >
-          다음 →
-        </Button>
+    <div className="space-y-4">
+      <p className="text-muted-foreground -mt-2 text-xs">최대 {max}개 선택</p>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        {opts.map((o, i) => {
+          const on = value.includes(i);
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => toggle(i)}
+              className={cn(optBase, on ? optOn : optOff)}
+            >
+              <Indicator on={on} square />
+              {o.t}
+            </button>
+          );
+        })}
       </div>
+      <Button
+        onClick={onNext}
+        disabled={value.length === 0}
+        className="bg-point hover:bg-point-hover h-auto w-full rounded-xl py-3 font-semibold"
+      >
+        다음
+        <span className="ml-1.5 tabular-nums opacity-80">
+          {value.length}/{max}
+        </span>{" "}
+        →
+      </Button>
     </div>
   );
 }
@@ -201,14 +226,14 @@ function TextStep({
     <div className="space-y-3">
       <textarea
         rows={3}
-        className="border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-xl border px-4 py-3 text-sm outline-none focus-visible:ring-3"
+        className="border-border text-foreground placeholder:text-muted-foreground focus-visible:border-point focus-visible:ring-point/30 w-full rounded-xl border px-4 py-3 text-sm transition outline-none focus-visible:ring-3"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
       <Button
         onClick={() => onSubmit(value.trim())}
-        className="bg-point h-auto w-full rounded-xl py-3 font-semibold hover:bg-[var(--point-hover)]"
+        className="bg-point hover:bg-point-hover h-auto w-full rounded-xl py-3 font-semibold"
       >
         결과 보기 →
       </Button>
