@@ -1,13 +1,16 @@
 "use client";
 
-// 북마크(공고·인사이트)를 localStorage에 저장하는 작은 외부 스토어.
-// 백엔드에 저장 엔드포인트가 없으므로 클라이언트(이 브라우저)에만 보관한다.
-// v3부터는 카드 렌더에 필요한 원본 데이터(Opportunity / NewsArticle)를 통째로
-// 저장해, 마이페이지·저장됨 화면에서 실제 공고/인사이트 레이아웃 그대로 보여준다.
+// 북마크(공고·인사이트) 스토어.
+// 저장소: 로그인 유저는 Supabase(public.bookmarks)에 영구 저장하고,
+//   비로그인(연결 테스트) 상태에서는 localStorage에만 보관한다.
+// localStorage는 즉시 렌더용 캐시 + 비로그인 폴백으로 계속 사용한다.
+// data(Opportunity / NewsArticle)를 통째로 저장해, 마이페이지·저장됨 화면에서
+// 실제 공고/인사이트 레이아웃 그대로 보여준다.
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 import type { NewsArticle, Opportunity } from "@/lib/api/iogo";
+import { createClient } from "@/lib/supabase/client";
 
 export type BookmarkKind = "job" | "insight";
 
@@ -70,19 +73,127 @@ function subscribe(cb: () => void) {
   };
 }
 
+// ===== Supabase 동기화 =====
+
+type BookmarkRow = {
+  kind: BookmarkKind;
+  item_id: string;
+  data: BookmarkItem["data"];
+  created_at: string | null;
+};
+
+async function getUid(): Promise<string | null> {
+  try {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+let hydrated = false;
+
+/**
+ * 로그인 유저면 Supabase에서 북마크를 불러와 스토어를 채운다.
+ * 로그인 전 localStorage에만 있던 항목은 DB로 1회 이관(merge)한다.
+ * 비로그인 상태면 아무 것도 하지 않고 localStorage만 쓴다.
+ */
+async function hydrate() {
+  if (hydrated) return;
+  hydrated = true;
+  try {
+    const uid = await getUid();
+    if (!uid) return; // 비로그인 → localStorage만 사용
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("bookmarks")
+      .select("kind,item_id,data,created_at")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false });
+    if (error || !data) return;
+
+    const serverItems = (data as BookmarkRow[]).map(
+      (r) =>
+        ({
+          id: r.item_id,
+          kind: r.kind,
+          savedAt: r.created_at ? new Date(r.created_at).getTime() : undefined,
+          data: r.data,
+        }) as BookmarkItem,
+    );
+
+    // 로그인 전 localStorage에만 있던 항목 → DB로 이관
+    const serverIds = new Set(serverItems.map((b) => b.id));
+    const localOnly = read().filter((b) => !serverIds.has(b.id));
+    if (localOnly.length) {
+      await supabase.from("bookmarks").upsert(
+        localOnly.map((b) => ({
+          user_id: uid,
+          kind: b.kind,
+          item_id: b.id,
+          data: b.data,
+        })),
+        { onConflict: "user_id,kind,item_id" },
+      );
+    }
+
+    write([...localOnly, ...serverItems]);
+  } catch {
+    // 동기화 실패는 조용히 무시 — localStorage 캐시로 계속 동작
+  }
+}
+
+async function persistToggle(item: BookmarkItem, add: boolean) {
+  try {
+    const uid = await getUid();
+    if (!uid) return; // 비로그인 → localStorage만
+    const supabase = createClient();
+    if (add) {
+      await supabase.from("bookmarks").upsert(
+        {
+          user_id: uid,
+          kind: item.kind,
+          item_id: item.id,
+          data: item.data,
+        },
+        { onConflict: "user_id,kind,item_id" },
+      );
+    } else {
+      await supabase
+        .from("bookmarks")
+        .delete()
+        .eq("user_id", uid)
+        .eq("kind", item.kind)
+        .eq("item_id", item.id);
+    }
+  } catch {
+    // 영구 저장 실패는 조용히 무시 — UI/localStorage엔 이미 반영됨
+  }
+}
+
 function toggleItem(item: BookmarkItem) {
   const cur = read();
-  if (cur.some((b) => b.id === item.id)) {
+  const exists = cur.some((b) => b.id === item.id);
+  // 1) 낙관적 업데이트(즉시 UI 반영 + localStorage)
+  if (exists) {
     write(cur.filter((b) => b.id !== item.id));
   } else {
     write([{ ...item, savedAt: Date.now() }, ...cur]);
   }
+  // 2) DB 영구 저장(베스트 에포트)
+  void persistToggle(item, !exists);
 }
 
 export function useBookmarks() {
   const items = useSyncExternalStore(subscribe, read, () => EMPTY);
+  useEffect(() => {
+    void hydrate();
+  }, []);
   const set = useMemo(() => new Set(items.map((b) => b.id)), [items]);
   const isBookmarked = useCallback((id: string) => set.has(id), [set]);
-  const toggle = useCallback((item: BookmarkItem) => toggleItem(item), []);
-  return { items, count: set.size, isBookmarked, toggle };
+  return { items, count: set.size, isBookmarked, toggle: toggleItem };
 }
