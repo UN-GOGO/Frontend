@@ -34,7 +34,7 @@ function iconFor(field?: string) {
 
 function scoreClass(pct: number) {
   if (pct >= 85) return "bg-point text-white";
-  if (pct >= 70) return "bg-accent text-point-hover";
+  if (pct >= 70) return "bg-point-soft text-point-hover";
   return "bg-secondary text-muted-foreground";
 }
 
@@ -79,8 +79,17 @@ export function Result({
   return (
     <div className="animate-[pol-up_0.35s_ease] space-y-5">
       {/* 히어로 + 나침반 바늘 */}
-      <div className="bg-primary flex items-center gap-5 rounded-[20px] p-6 text-white">
-        <svg width="76" height="76" viewBox="0 0 100 100" className="shrink-0">
+      <div className="bg-primary relative flex items-center gap-5 overflow-hidden rounded-[20px] px-7 py-6 text-white">
+        <span
+          className="pointer-events-none absolute -top-12 -right-10 size-44 rounded-full blur-[12px]"
+          style={{ background: "rgba(109,91,208,0.25)" }}
+        />
+        <svg
+          width="84"
+          height="84"
+          viewBox="0 0 100 100"
+          className="relative shrink-0"
+        >
           <circle
             cx="50"
             cy="50"
@@ -102,9 +111,11 @@ export function Result({
           </g>
           <circle cx="50" cy="50" r="4" fill="#fff" />
         </svg>
-        <div>
-          <p className="mb-1 text-xs text-white/70">진단 완료!</p>
-          <p className="text-lg font-bold">{topline}</p>
+        <div className="relative min-w-0">
+          <p className="mb-1 text-xs font-semibold text-white/60">진단 완료</p>
+          <p className="text-xl leading-snug font-extrabold tracking-tight text-balance">
+            {topline}
+          </p>
         </div>
       </div>
 
@@ -114,8 +125,8 @@ export function Result({
         <>
           {/* 입력 프로필 칩 */}
           {PROFILE_LABELS.some(([k]) => summary[k]) && (
-            <div className="bg-card border-border rounded-[16px] border p-3">
-              <p className="text-muted-foreground mb-1.5 text-[11px]">
+            <div className="border-border bg-card rounded-[16px] border p-4">
+              <p className="text-muted-foreground mb-2 text-[11px] font-bold">
                 입력하신 프로필
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -123,9 +134,10 @@ export function Result({
                   ([k, label]) => (
                     <span
                       key={k}
-                      className="bg-secondary border-border text-muted-foreground rounded-full border px-2 py-0.5 text-[11px]"
+                      className="border-border text-muted-foreground rounded-full border bg-white px-2.5 py-1 text-[11px]"
                     >
-                      {label}: {summary[k]}
+                      <span className="text-foreground/50">{label}</span>{" "}
+                      {summary[k]}
                     </span>
                   ),
                 )}
@@ -134,17 +146,18 @@ export function Result({
           )}
 
           <div>
-            <h3 className="text-foreground mb-3 text-sm font-semibold">
-              <span className="text-point">●</span> 당신에게 맞는 국제기구 Top 3
+            <h3 className="text-foreground mb-3 flex items-center gap-2 text-sm font-extrabold">
+              <span className="bg-point size-2 rounded-full" />
+              당신에게 맞는 국제기구 Top 3
             </h3>
             {recs.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
+              <div className="border-border text-muted-foreground rounded-[16px] border border-dashed p-6 text-center text-sm">
                 매칭 결과가 적어요. 다시 진단하거나 관심 분야를 더 선택해보세요.
-              </p>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {recs.map((r, i) => (
-                  <OrgCard key={i} rec={r} />
+                  <OrgCard key={i} rec={r} rank={i + 1} />
                 ))}
               </div>
             )}
@@ -152,13 +165,13 @@ export function Result({
 
           {/* AI 조언 */}
           {data?.advice && (
-            <div className="bg-accent border-point-border rounded-[16px] border p-4">
-              <div className="mb-1 flex items-center gap-2">
+            <div className="border-point-border bg-point-soft rounded-[16px] border p-5">
+              <div className="mb-2 flex items-center gap-2">
                 <span className="text-point">✦</span>
-                <span className="text-foreground text-xs font-semibold">
+                <span className="text-foreground text-xs font-extrabold">
                   AI 맞춤 조언
                 </span>
-                <span className="border-border text-muted-foreground ml-auto rounded-full border bg-white px-1.5 py-0.5 text-[10px]">
+                <span className="border-border text-muted-foreground ml-auto rounded-full border bg-white px-2 py-0.5 text-[10px] font-semibold">
                   {isAI ? "AI 분석 (Gemini)" : "규칙기반 (오프라인 폴백)"}
                 </span>
               </div>
@@ -168,15 +181,15 @@ export function Result({
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2.5 sm:flex-row">
             <button
               type="button"
               onClick={onRetry}
-              className="border-border text-muted-foreground flex-1 rounded-xl border bg-white py-3 text-sm hover:bg-[var(--secondary)]"
+              className="border-border text-muted-foreground hover:border-point-border flex-1 rounded-xl border bg-white py-3 text-sm font-bold transition-colors"
             >
               다시 진단
             </button>
-            <Button className="bg-primary h-auto flex-1 rounded-xl py-3 text-sm font-medium">
+            <Button className="bg-primary hover:bg-point-hover h-auto flex-1 rounded-xl py-3 text-sm font-bold">
               이 기구 준비 로드맵 짜기 →
             </Button>
           </div>
@@ -186,34 +199,37 @@ export function Result({
   );
 }
 
-function OrgCard({ rec }: { rec: Recommendation }) {
+function OrgCard({ rec, rank }: { rec: Recommendation; rank: number }) {
   const pct = rec.score ?? 60;
   return (
-    <div className="bg-card border-border rounded-[16px] border p-4">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-accent flex size-10 items-center justify-center rounded-xl text-lg">
-            {iconFor(rec.field)}
-          </div>
-          <div>
-            <p className="text-foreground text-sm font-semibold">
-              {rec.org || rec.abbr}
-            </p>
-            <p className="text-muted-foreground text-xs">{rec.field}</p>
-          </div>
+    <div className="border-border bg-card flex flex-col gap-3 rounded-[16px] border p-4">
+      <div className="flex items-start gap-3">
+        <div className="bg-point-soft relative flex size-11 shrink-0 items-center justify-center rounded-xl text-lg">
+          {iconFor(rec.field)}
+          <span className="bg-primary absolute -top-1.5 -left-1.5 flex size-5 items-center justify-center rounded-full text-[10px] font-extrabold text-white">
+            {rank}
+          </span>
         </div>
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-bold ${scoreClass(pct)}`}
-        >
-          적합도 {pct}%
-        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-foreground truncate text-sm font-extrabold">
+            {rec.org || rec.abbr}
+          </p>
+          <p className="text-muted-foreground truncate text-xs">{rec.field}</p>
+        </div>
       </div>
+
+      <span
+        className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${scoreClass(pct)}`}
+      >
+        적합도 {pct}%
+      </span>
+
       {(rec.matched?.length || rec.missing?.length) > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {(rec.matched ?? []).map((m, i) => (
             <span
               key={`m${i}`}
-              className="bg-secondary border-border rounded-full border px-2 py-0.5 text-xs"
+              className="bg-secondary border-border text-foreground/80 rounded-full border px-2 py-0.5 text-[11px]"
             >
               {m} ✓
             </span>
@@ -221,7 +237,7 @@ function OrgCard({ rec }: { rec: Recommendation }) {
           {(rec.missing ?? []).map((m, i) => (
             <span
               key={`x${i}`}
-              className="rounded-full border border-[#FDE68A] bg-[#FEF9EC] px-2 py-0.5 text-xs text-[#92400E]"
+              className="rounded-full border border-[#FDE68A] bg-[#FEF9EC] px-2 py-0.5 text-[11px] text-[#92400E]"
             >
               보완: {m}
             </span>
@@ -229,7 +245,7 @@ function OrgCard({ rec }: { rec: Recommendation }) {
         </div>
       )}
       {rec.lang_tip && (
-        <p className="text-muted-foreground mt-2 text-[11px]">
+        <p className="text-muted-foreground mt-auto text-[11px]">
           🗣️ {rec.lang_tip}
         </p>
       )}
@@ -247,9 +263,11 @@ function LoadingCard() {
     return () => clearInterval(t);
   }, []);
   return (
-    <div className="bg-card border-border rounded-[16px] border p-8 text-center">
-      <div className="border-secondary border-t-point mx-auto mb-3 size-7 animate-[pol-spin_1s_linear_infinite] rounded-full border-2" />
-      <p className="text-muted-foreground text-sm">{LOADING_MSGS[i]}</p>
+    <div className="border-border bg-card rounded-[16px] border p-10 text-center">
+      <div className="border-secondary border-t-point mx-auto mb-3 size-8 animate-[pol-spin_1s_linear_infinite] rounded-full border-2" />
+      <p className="text-muted-foreground text-sm font-semibold">
+        {LOADING_MSGS[i]}
+      </p>
       <p className="text-muted-foreground/70 mt-1 text-[11px]">
         AI가 36개 국제기구와 꼼꼼히 비교하느라 10초쯤 걸려요
       </p>

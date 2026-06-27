@@ -56,7 +56,7 @@ export function CompassFlow() {
   };
 
   return (
-    <div className="w-full max-w-110">
+    <div className="w-full">
       {phase === "intro" && <ProfileIntro onStart={start} />}
       {phase === "quiz" && (
         <Quiz onFinish={finish} onExit={() => setPhase("intro")} />
