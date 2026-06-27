@@ -69,7 +69,7 @@ export default function LoginPage() {
             </div>
             <div className="text-center">
               <h1 className="text-foreground text-[22px] font-extrabold tracking-[-0.4px]">
-                Polaris에 오신 걸 환영합니다.
+                I-OGO에 오신 걸 환영합니다.
               </h1>
               <p className="text-muted-foreground mt-[5px] text-[13px]">
                 로그인하면 적합도·저장·맞춤 조언이 켜집니다.
@@ -178,12 +178,6 @@ export default function LoginPage() {
 
           {/* 둘러보기 / 회원가입 */}
           <div className="mt-[18px] flex flex-col items-center gap-3">
-            <Link
-              href="/compass"
-              className="text-muted-foreground text-[13px] font-bold underline underline-offset-[3px]"
-            >
-              먼저 둘러보기
-            </Link>
             <p className="text-muted-foreground/80 text-[13px]">
               계정이 없으세요?{" "}
               <Link href="/signup" className="text-point-hover font-extrabold">
