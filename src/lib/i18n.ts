@@ -5,12 +5,14 @@
 export const shellStrings = {
   tagline: "외교부 공공데이터 글로벌 커리어",
   // nav items — the three product pillars
-  navCompass: "나침반",
-  navOpportunities: "기회",
-  navInsight: "인사이트",
   navChat: "챗봇",
+  navCompass: "나침반",
+  navOpportunities: "공고",
+  navInsight: "인사이트",
   navNotif: "알림",
-  navMy: "마이",
+  navMypage: "마이페이지",
+  navLogin: "로그인",
+  navSignup: "회원가입",
   // aria
   notifAria: "알림",
   mypageAria: "마이페이지",
