@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { sendCompassFeedback } from "@/lib/compass/feedback";
 import type {
   ProfileSummary,
   Recommendation,
@@ -39,10 +40,10 @@ function scoreClass(pct: number) {
 }
 
 const LOADING_MSGS = [
-  "프로필을 분석하고 있어요…",
-  "36개 국제기구와 비교하고 있어요…",
-  "관심 분야·강점을 매칭하고 있어요…",
-  "맞춤 조언을 작성하고 있어요…",
+  "프로필 분석 중…",
+  "36개 국제기구와 비교 중…",
+  "관심 분야·강점 매칭 중…",
+  "맞춤 조언 작성 중…",
 ];
 
 const PROFILE_LABELS: [keyof ProfileSummary, string][] = [
@@ -78,51 +79,53 @@ export function Result({
 
   return (
     <div className="animate-[pol-up_0.35s_ease] space-y-5">
-      {/* 히어로 + 나침반 바늘 */}
-      <div className="bg-primary relative flex items-center gap-5 overflow-hidden rounded-[20px] px-7 py-6 text-white">
-        <span
-          className="pointer-events-none absolute -top-12 -right-10 size-44 rounded-full blur-[12px]"
-          style={{ background: "rgba(109,91,208,0.25)" }}
-        />
-        <svg
-          width="84"
-          height="84"
-          viewBox="0 0 100 100"
-          className="relative shrink-0"
-        >
-          <circle
-            cx="50"
-            cy="50"
-            r="46"
-            fill="none"
-            stroke="#576CBC"
-            strokeWidth="2"
-            opacity="0.5"
-          />
-          <g
-            style={{
-              transform: `rotate(${angle}deg)`,
-              transformOrigin: "50% 50%",
-              transition: "transform 1.1s cubic-bezier(.2,.8,.2,1)",
-            }}
-          >
-            <polygon points="50,12 56,50 50,46 44,50" fill="#8b7ce0" />
-            <polygon points="50,88 56,50 50,54 44,50" fill="#F59E0B" />
-          </g>
-          <circle cx="50" cy="50" r="4" fill="#fff" />
-        </svg>
-        <div className="relative min-w-0">
-          <p className="mb-1 text-xs font-semibold text-white/60">진단 완료</p>
-          <p className="text-xl leading-snug font-extrabold tracking-tight text-balance">
-            {topline}
-          </p>
-        </div>
-      </div>
-
       {loading ? (
-        <LoadingCard />
+        <CompassLoading />
       ) : (
         <>
+          {/* 히어로 + 나침반 바늘 */}
+          <div className="bg-primary relative flex items-center gap-5 overflow-hidden rounded-[20px] px-7 py-6 text-white">
+            <span
+              className="pointer-events-none absolute -top-12 -right-10 size-44 rounded-full blur-[12px]"
+              style={{ background: "rgba(109,91,208,0.25)" }}
+            />
+            <svg
+              width="84"
+              height="84"
+              viewBox="0 0 100 100"
+              className="relative shrink-0"
+            >
+              <circle
+                cx="50"
+                cy="50"
+                r="46"
+                fill="none"
+                stroke="#576CBC"
+                strokeWidth="2"
+                opacity="0.5"
+              />
+              <g
+                style={{
+                  transform: `rotate(${angle}deg)`,
+                  transformOrigin: "50% 50%",
+                  transition: "transform 1.1s cubic-bezier(.2,.8,.2,1)",
+                }}
+              >
+                <polygon points="50,12 56,50 50,46 44,50" fill="#8b7ce0" />
+                <polygon points="50,88 56,50 50,54 44,50" fill="#F59E0B" />
+              </g>
+              <circle cx="50" cy="50" r="4" fill="#fff" />
+            </svg>
+            <div className="relative min-w-0">
+              <p className="mb-1 text-xs font-semibold text-white/60">
+                진단 완료
+              </p>
+              <p className="text-xl leading-snug font-extrabold tracking-tight text-balance">
+                {topline}
+              </p>
+            </div>
+          </div>
+
           {/* 입력 프로필 칩 */}
           {PROFILE_LABELS.some(([k]) => summary[k]) && (
             <div className="border-border bg-card rounded-[16px] border p-4">
@@ -163,6 +166,45 @@ export function Result({
             )}
           </div>
 
+          {/* 더 둘러볼 기구 */}
+          {data?.explore && data.explore.length > 0 && (
+            <div>
+              <h3 className="text-foreground mb-3 flex items-center gap-2 text-sm font-extrabold">
+                <span className="bg-point/40 size-2 rounded-full" />이 분야라면
+                함께 둘러보세요
+              </h3>
+              <div className="flex flex-col gap-2.5">
+                {data.explore.map((g, i) => (
+                  <div
+                    key={i}
+                    className="border-border bg-card rounded-[14px] border p-4"
+                  >
+                    <p className="text-foreground text-[13px] font-bold">
+                      {g.topic}
+                    </p>
+                    {g.orgs.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {g.orgs.map((o, j) => (
+                          <span
+                            key={j}
+                            className="bg-point-soft text-point-hover rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                          >
+                            {o}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {g.note && (
+                      <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+                        {g.note}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* AI 조언 */}
           {data?.advice && (
             <div className="border-point-border bg-point-soft rounded-[16px] border p-5">
@@ -172,7 +214,9 @@ export function Result({
                   AI 맞춤 조언
                 </span>
                 <span className="border-border text-muted-foreground ml-auto rounded-full border bg-white px-2 py-0.5 text-[10px] font-semibold">
-                  {isAI ? "AI 분석 (Gemini)" : "규칙기반 (오프라인 폴백)"}
+                  {isAI
+                    ? `AI 분석 (${data.engine ?? "AI"})`
+                    : "규칙기반 (오프라인 폴백)"}
                 </span>
               </div>
               <p className="text-foreground text-sm leading-relaxed">
@@ -193,7 +237,73 @@ export function Result({
               이 기구 준비 로드맵 짜기 →
             </Button>
           </div>
+
+          <Feedback />
         </>
+      )}
+    </div>
+  );
+}
+
+const FEEDBACK_EMOJIS = ["😍", "🙂", "😐", "🙁"];
+
+function Feedback() {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+
+  if (sent) {
+    return (
+      <div className="border-border text-muted-foreground rounded-[14px] border border-dashed p-4 text-center text-xs">
+        소중한 의견 고마워요! 🙏
+      </div>
+    );
+  }
+
+  const submit = async (emoji: string, withText: boolean) => {
+    setPicked(emoji);
+    if (!withText) return; // 이모지만 선택 — 전송은 버튼/입력 후
+    await sendCompassFeedback(emoji, text);
+    setSent(true);
+  };
+
+  return (
+    <div className="border-border bg-card rounded-[14px] border p-4">
+      <p className="text-foreground text-xs font-bold">
+        이 추천 결과가 도움이 되었나요?
+      </p>
+      <div className="mt-2.5 flex items-center gap-2">
+        {FEEDBACK_EMOJIS.map((e) => (
+          <button
+            key={e}
+            type="button"
+            onClick={() => submit(e, false)}
+            className={`flex size-9 items-center justify-center rounded-full border text-lg transition-colors ${
+              picked === e
+                ? "border-point-border bg-point-soft"
+                : "border-border hover:border-point-border bg-white"
+            }`}
+          >
+            {e}
+          </button>
+        ))}
+      </div>
+      {picked && (
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={text}
+            onChange={(ev) => setText(ev.target.value)}
+            placeholder="한 줄 의견 (선택)"
+            className="border-border text-foreground placeholder:text-muted-foreground focus:border-point flex-1 rounded-[10px] border px-3 py-2 text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => submit(picked, true)}
+            className="bg-primary hover:bg-point-hover rounded-[10px] px-4 py-2 text-[13px] font-bold text-white transition-colors"
+          >
+            보내기
+          </button>
+        </div>
       )}
     </div>
   );
@@ -218,11 +328,26 @@ function OrgCard({ rec, rank }: { rec: Recommendation; rank: number }) {
         </div>
       </div>
 
-      <span
-        className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${scoreClass(pct)}`}
-      >
-        적합도 {pct}%
-      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span
+          className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${scoreClass(pct)}`}
+        >
+          적합도 {pct}%
+        </span>
+        {rec.postings && (
+          <span
+            title={rec.postings.sample}
+            className="w-fit rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-bold text-[#15803d]"
+          >
+            🟢 공석 {rec.postings.count}건
+          </span>
+        )}
+      </div>
+      {rec.postings && (
+        <p className="text-muted-foreground -mt-1 truncate text-[11px]">
+          {rec.postings.types}
+        </p>
+      )}
 
       {(rec.matched?.length || rec.missing?.length) > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -253,23 +378,125 @@ function OrgCard({ rec, rank }: { rec: Recommendation; rank: number }) {
   );
 }
 
-function LoadingCard() {
+function CompassLoading() {
   const [i, setI] = useState(0);
   useEffect(() => {
     const t = setInterval(
       () => setI((v) => (v + 1) % LOADING_MSGS.length),
-      2200,
+      2000,
     );
     return () => clearInterval(t);
   }, []);
+
   return (
-    <div className="border-border bg-card rounded-[16px] border p-10 text-center">
-      <div className="border-secondary border-t-point mx-auto mb-3 size-8 animate-[pol-spin_1s_linear_infinite] rounded-full border-2" />
-      <p className="text-muted-foreground text-sm font-semibold">
+    <div className="border-border bg-card flex flex-col items-center rounded-[20px] border px-6 py-12 text-center">
+      <svg
+        width="168"
+        height="168"
+        viewBox="0 0 200 200"
+        className="mb-6"
+        aria-hidden
+      >
+        {/* 바깥 링 */}
+        <circle
+          cx="100"
+          cy="100"
+          r="84"
+          fill="var(--card)"
+          stroke="var(--border)"
+          strokeWidth="2"
+        />
+        <circle
+          cx="100"
+          cy="100"
+          r="66"
+          fill="var(--point-soft)"
+          opacity="0.25"
+        />
+
+        {/* N/E/S/W 눈금 */}
+        {[
+          [100, 18, 100, 30],
+          [182, 100, 170, 100],
+          [100, 182, 100, 170],
+          [18, 100, 30, 100],
+        ].map(([x1, y1, x2, y2], k) => (
+          <line
+            key={k}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="var(--muted-foreground)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            opacity="0.5"
+          />
+        ))}
+
+        {/* 회전하는 진행 아크 */}
+        <g
+          className="animate-[pol-spin_1.8s_linear_infinite]"
+          style={{ transformOrigin: "50% 50%" }}
+        >
+          <circle
+            cx="100"
+            cy="100"
+            r="84"
+            fill="none"
+            stroke="var(--point)"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeDasharray="78 450"
+          />
+        </g>
+
+        {/* 바늘 (N 고정) */}
+        <g>
+          <polygon points="100,40 110,100 100,94 90,100" fill="var(--point)" />
+          <polygon points="100,160 110,100 100,106 90,100" fill="#F59E0B" />
+        </g>
+        <circle
+          cx="100"
+          cy="100"
+          r="6"
+          fill="var(--card)"
+          stroke="var(--point)"
+          strokeWidth="2"
+        />
+
+        {/* 방위 라벨 */}
+        {(
+          [
+            ["N", 100, 13, "var(--point-hover)"],
+            ["E", 192, 105, "var(--muted-foreground)"],
+            ["S", 100, 197, "var(--muted-foreground)"],
+            ["W", 8, 105, "var(--muted-foreground)"],
+          ] as const
+        ).map(([t, x, y, fill]) => (
+          <text
+            key={t}
+            x={x}
+            y={y}
+            fill={fill}
+            fontSize="12"
+            fontWeight="700"
+            textAnchor="middle"
+            dominantBaseline="middle"
+          >
+            {t}
+          </text>
+        ))}
+      </svg>
+
+      <p className="text-foreground text-base font-extrabold">분석 중이에요</p>
+      <p className="text-point-hover mt-2 text-sm font-bold">
         {LOADING_MSGS[i]}
       </p>
-      <p className="text-muted-foreground/70 mt-1 text-[11px]">
-        AI가 36개 국제기구와 꼼꼼히 비교하느라 10초쯤 걸려요
+      <p className="text-muted-foreground/70 mt-2 text-xs leading-relaxed">
+        AI가 36개 국제기구와 꼼꼼히 비교하느라
+        <br />
+        10초쯤 걸려요
       </p>
     </div>
   );
