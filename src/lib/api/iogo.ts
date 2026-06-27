@@ -36,17 +36,6 @@ export function getOpportunities(
   return apiGet<Opportunity[]>(`/opportunities${qs ? `?${qs}` : ""}`, init);
 }
 
-export function getMatchedOpportunities(
-  userId: string,
-  limit = 10,
-  init?: { signal?: AbortSignal },
-): Promise<Opportunity[]> {
-  return apiGet<Opportunity[]>(
-    `/opportunities/matched?user_id=${encodeURIComponent(userId)}&limit=${limit}`,
-    init,
-  );
-}
-
 export function getOpportunity(
   id: string,
   init?: { signal?: AbortSignal },
@@ -167,21 +156,4 @@ export function getUserStats(
     `/recommend/stats/${encodeURIComponent(userId)}`,
     init,
   );
-}
-
-export function logSearch(
-  userId: string,
-  keyword: string,
-): Promise<{ status: string; message: string }> {
-  return apiPost("/recommend/log/search", { user_id: userId, keyword });
-}
-
-export function logClick(
-  userId: string,
-  targetOrganization: string,
-): Promise<{ status: string; message: string }> {
-  return apiPost("/recommend/log/click", {
-    user_id: userId,
-    target_organization: targetOrganization,
-  });
 }

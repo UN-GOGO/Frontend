@@ -4,8 +4,8 @@ import { Check } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { QUESTIONS } from "@/lib/navigator/questions";
-import type { Answer } from "@/lib/navigator/types";
+import { QUESTIONS } from "@/lib/compass/questions";
+import type { Answer } from "@/lib/compass/types";
 import { cn } from "@/lib/utils";
 
 export function Quiz({

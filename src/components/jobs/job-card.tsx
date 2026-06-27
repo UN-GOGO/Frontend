@@ -3,8 +3,8 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
-import { BookmarkButton } from "./bookmark-button";
-import { type Opportunity } from "@/lib/api/ungogo";
+import { BookmarkButton } from "@/components/bookmarks/bookmark-button";
+import { type Opportunity } from "@/lib/api/iogo";
 import { ddayChip, fitBadge, orgAbbrev } from "@/lib/opportunity";
 import { cn } from "@/lib/utils";
 

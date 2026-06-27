@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { ProfileSummary } from "@/lib/navigator/types";
+import type { ProfileSummary } from "@/lib/compass/types";
 
 const controlClass =
   "border-border text-foreground placeholder:text-muted-foreground focus-visible:border-point focus-visible:ring-point/30 w-full rounded-[10px] border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-3";

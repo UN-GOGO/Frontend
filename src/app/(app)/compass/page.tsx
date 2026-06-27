@@ -1,4 +1,4 @@
-import { CompassFlow } from "@/components/navigator/compass-flow";
+import { CompassFlow } from "@/components/compass/compass-flow";
 
 export const metadata = {
   title: "나침반 · 나에게 맞는 국제기구 — I-OGO",

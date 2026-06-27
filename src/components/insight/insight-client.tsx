@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-import { ConnBadge, type ConnState } from "./conn-badge";
-import { InsightCard } from "./insight-card";
+import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
+import { InsightCard } from "@/components/insight/insight-card";
 import {
   getRecommendations,
   getUserStats,
   type RecommendResult,
   type UserStats,
-} from "@/lib/api/ungogo";
+} from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 
 export function InsightClient() {

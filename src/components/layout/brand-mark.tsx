@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Polaris mark (v1 / slate) — a violet rounded square with a four-point
+ * Brand mark (v1 / slate) — a violet rounded square with a four-point
  * star (✦). Sized via `className` (defaults to 30px, matching the header
  * logo in the design comp).
  */
-export function PolarisMark({ className }: { className?: string }) {
+export function BrandMark({ className }: { className?: string }) {
   return (
     <span
       aria-hidden

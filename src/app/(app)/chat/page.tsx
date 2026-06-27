@@ -1,4 +1,4 @@
-import { ChatClient } from "@/components/ungogo/chat-client";
+import { ChatClient } from "@/components/chat/chat-client";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {

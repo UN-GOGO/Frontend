@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Briefcase, ChevronRight, Newspaper } from "lucide-react";
 
-import { ConnBadge, type ConnState } from "./conn-badge";
+import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import {
   getProfile,
   getUserStats,
   type Profile,
   type UserStats,
-} from "@/lib/api/ungogo";
+} from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 import { useBookmarks } from "@/lib/bookmarks";
 

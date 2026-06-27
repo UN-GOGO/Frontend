@@ -1,4 +1,4 @@
-import { MypageClient } from "@/components/ungogo/mypage-client";
+import { MypageClient } from "@/components/mypage/mypage-client";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {

@@ -1,7 +1,7 @@
 "use client";
 
-import { BookmarkButton } from "./bookmark-button";
-import { type NewsArticle } from "@/lib/api/ungogo";
+import { BookmarkButton } from "@/components/bookmarks/bookmark-button";
+import { type NewsArticle } from "@/lib/api/iogo";
 
 /** 인사이트(추천 뉴스) 목록·저장됨 화면에서 공유하는 뉴스 카드. */
 export function InsightCard({ article: a }: { article: NewsArticle }) {

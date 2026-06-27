@@ -4,8 +4,8 @@ import { ArrowRight, ArrowUp, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { ConnBadge, type ConnState } from "./conn-badge";
-import { sendChat, type ChatResponse } from "@/lib/api/ungogo";
+import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
+import { sendChat, type ChatResponse } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 
 type Msg = {

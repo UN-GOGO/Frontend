@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { PolarisMark } from "@/components/layout/polaris-mark";
+import { BrandMark } from "@/components/layout/brand-mark";
 import { shellStrings as t } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,7 +19,7 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
         href="/compass"
         className="focus-visible:ring-point flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-2"
       >
-        <PolarisMark />
+        <BrandMark />
         <span className="flex flex-col leading-[1.05]">
           <span className="text-[17px] font-extrabold tracking-tight">
             I-OGO

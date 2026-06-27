@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogIn, User, UserPlus, type LucideIcon } from "lucide-react";
 
-import { LogoutButton } from "@/components/logout-button";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { shellStrings as t } from "@/lib/i18n";
 import { nav } from "@/lib/nav";
 import { cn } from "@/lib/utils";
