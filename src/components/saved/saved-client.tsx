@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
-import { InsightCard } from "./insight-card";
-import { JobCard } from "./job-card";
+import { InsightCard } from "@/components/insight/insight-card";
+import { JobCard } from "@/components/jobs/job-card";
 import { useBookmarks, type BookmarkKind } from "@/lib/bookmarks";
 import { cn } from "@/lib/utils";
 

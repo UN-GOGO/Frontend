@@ -3,9 +3,9 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { ConnBadge, type ConnState } from "./conn-badge";
-import { JobCard } from "./job-card";
-import { getOpportunities, type Opportunity } from "@/lib/api/ungogo";
+import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
+import { JobCard } from "@/components/jobs/job-card";
+import { getOpportunities, type Opportunity } from "@/lib/api/iogo";
 import { cn } from "@/lib/utils";
 
 type SortKey = "fit" | "dday";

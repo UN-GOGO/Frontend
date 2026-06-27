@@ -1,4 +1,4 @@
-import { SavedClient } from "@/components/ungogo/saved-client";
+import { SavedClient } from "@/components/saved/saved-client";
 import type { BookmarkKind } from "@/lib/bookmarks";
 
 export const metadata = {

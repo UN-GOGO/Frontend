@@ -7,7 +7,7 @@
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 
-import type { NewsArticle, Opportunity } from "@/lib/api/ungogo";
+import type { NewsArticle, Opportunity } from "@/lib/api/iogo";
 
 export type BookmarkKind = "job" | "insight";
 
@@ -15,7 +15,8 @@ export type BookmarkItem =
   | { id: string; kind: "job"; savedAt?: number; data: Opportunity }
   | { id: string; kind: "insight"; savedAt?: number; data: NewsArticle };
 
-const KEY = "polaris.bookmarks.v3";
+const KEY = "iogo.bookmarks.v1";
+const LEGACY_KEY = "polaris.bookmarks.v3";
 const EMPTY: BookmarkItem[] = [];
 
 const listeners = new Set<() => void>();
@@ -25,7 +26,16 @@ function read(): BookmarkItem[] {
   if (cache) return cache;
   if (typeof window === "undefined") return EMPTY;
   try {
-    const raw = window.localStorage.getItem(KEY);
+    let raw = window.localStorage.getItem(KEY);
+    // 레거시 키(polaris.bookmarks.v3)에서 1회 마이그레이션 — 기존 저장 데이터 보존
+    if (!raw) {
+      const legacy = window.localStorage.getItem(LEGACY_KEY);
+      if (legacy) {
+        window.localStorage.setItem(KEY, legacy);
+        window.localStorage.removeItem(LEGACY_KEY);
+        raw = legacy;
+      }
+    }
     cache = raw ? (JSON.parse(raw) as BookmarkItem[]) : [];
   } catch {
     cache = [];

@@ -9,7 +9,7 @@ export type SaveResult = { ok: boolean; error?: string };
  * - 로그인 상태가 아니면 저장하지 않고 조용히 반환한다(베스트 에포트).
  * - 추천 1회 실행 = 1행(이력 누적).
  */
-export async function saveNavigatorResult(params: {
+export async function saveCompassResult(params: {
   profileInput: ProfileSummary;
   profileText: string;
   answers: Answer[];

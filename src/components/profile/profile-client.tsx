@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { ConnBadge, type ConnState } from "./conn-badge";
+import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getProfile, updateProfile, type Profile } from "@/lib/api/ungogo";
+import { getProfile, updateProfile, type Profile } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 
 export function ProfileClient() {

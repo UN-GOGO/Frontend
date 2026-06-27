@@ -4,8 +4,8 @@ import { ArrowUpRight, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { BookmarkButton } from "./bookmark-button";
-import { getOpportunity, type Opportunity } from "@/lib/api/ungogo";
+import { BookmarkButton } from "@/components/bookmarks/bookmark-button";
+import { getOpportunity, type Opportunity } from "@/lib/api/iogo";
 import { ddayChip, fitBadge, orgAbbrev } from "@/lib/opportunity";
 import { cn } from "@/lib/utils";
 

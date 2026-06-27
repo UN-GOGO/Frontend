@@ -7,7 +7,7 @@ import type {
   ProfileSummary,
   Recommendation,
   RecommendResponse,
-} from "@/lib/navigator/types";
+} from "@/lib/compass/types";
 
 // 분야 문자열 → 이모지 (표시용)
 function iconFor(field?: string) {

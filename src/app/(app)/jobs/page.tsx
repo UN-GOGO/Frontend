@@ -1,4 +1,4 @@
-import { JobsClient } from "@/components/ungogo/jobs-client";
+import { JobsClient } from "@/components/jobs/jobs-client";
 
 export const metadata = {
   title: "공고 탐색 — I-OGO",
