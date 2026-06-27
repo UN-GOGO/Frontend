@@ -5,7 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { JobCard } from "@/components/jobs/job-card";
-import { getOpportunities, type Opportunity } from "@/lib/api/iogo";
+import {
+  getOpportunities,
+  getPersonalizedOpportunities,
+  logSearch,
+  type Opportunity,
+} from "@/lib/api/iogo";
+import { getUserId } from "@/lib/api/user";
 import { cn } from "@/lib/utils";
 
 type SortKey = "fit" | "dday";
@@ -16,6 +22,8 @@ export function JobsClient() {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<Opportunity[]>([]);
+  const [personalized, setPersonalized] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string>("all");
   const [activeOrg, setActiveOrg] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("fit");
@@ -23,16 +31,32 @@ export function JobsClient() {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    getOpportunities({ limit: 100 }, { signal: ctrl.signal })
-      .then((data) => {
-        setItems(data);
+    (async () => {
+      try {
+        const uid = await getUserId();
+        setUserId(uid);
+        // 개인화 공고 우선 시도. 나침반 미완료(has_compass=false)거나
+        // 결과가 비면 일반 공고 목록으로 폴백한다.
+        const p = await getPersonalizedOpportunities(uid, {
+          signal: ctrl.signal,
+        });
+        if (p.has_compass && p.items.length > 0) {
+          setItems(p.items);
+          setPersonalized(true);
+        } else {
+          const all = await getOpportunities(
+            { limit: 100 },
+            { signal: ctrl.signal },
+          );
+          setItems(all);
+        }
         setState("ok");
-      })
-      .catch((e: unknown) => {
+      } catch (e: unknown) {
         if (ctrl.signal.aborted) return;
         setError(e instanceof Error ? e.message : String(e));
         setState("error");
-      });
+      }
+    })();
     return () => ctrl.abort();
   }, []);
 
@@ -74,6 +98,10 @@ export function JobsClient() {
   const selectOrg = (o: string) => {
     setActiveOrg(o);
     setPage(1);
+    // 기구 필터 선택을 검색 신호로 기록 (개인화 입력). 실패는 무시.
+    if (o !== "all" && userId) {
+      void logSearch(userId, o).catch(() => {});
+    }
   };
   const selectSort = (s: SortKey) => {
     setSort(s);
@@ -97,7 +125,7 @@ export function JobsClient() {
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             {state === "ok"
-              ? `${visible.length}개의 공고`
+              ? `${visible.length}개의 공고${personalized ? " · 맞춤 정렬" : ""}`
               : "외교부 공공데이터 기반 국제기구 공고"}
           </p>
         </div>
