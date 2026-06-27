@@ -1,16 +1,17 @@
-import { ScreenPlaceholder } from "@/components/layout/screen-placeholder";
+import { MypageClient } from "@/components/ungogo/mypage-client";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
-  title: "마이페이지 — Polaris",
+  title: "마이페이지 — I-OGO",
 };
 
-export default function MyPage() {
-  return (
-    <ScreenPlaceholder
-      copy={{
-        title: "마이페이지",
-        subtitle: "프로필·알림·설정과 내 활동을 한곳에서 관리합니다.",
-      }}
-    />
-  );
+export default async function MyPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const name = ((user?.user_metadata?.name as string | undefined) ?? "").trim();
+  const email = user?.email ?? "";
+
+  return <MypageClient name={name} email={email} />;
 }

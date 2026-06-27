@@ -1,27 +1,29 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
-import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { BookmarkButton } from "./bookmark-button";
 import { ConnBadge, type ConnState } from "./conn-badge";
+import { JobCard } from "./job-card";
 import { getOpportunities, type Opportunity } from "@/lib/api/ungogo";
-import { ddayChip, fitBadge, orgAbbrev } from "@/lib/opportunity";
 import { cn } from "@/lib/utils";
 
 type SortKey = "fit" | "dday";
+
+const PAGE_SIZE = 9;
 
 export function JobsClient() {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<Opportunity[]>([]);
   const [activeType, setActiveType] = useState<string>("all");
+  const [activeOrg, setActiveOrg] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("fit");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const ctrl = new AbortController();
-    getOpportunities({ limit: 20 }, { signal: ctrl.signal })
+    getOpportunities({ limit: 100 }, { signal: ctrl.signal })
       .then((data) => {
         setItems(data);
         setState("ok");
@@ -40,9 +42,21 @@ export function JobsClient() {
     [items],
   );
 
+  // 데이터에 존재하는 기관 목록 (가나다순).
+  const orgs = useMemo(
+    () =>
+      Array.from(
+        new Set(items.map((o) => o.organization).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b, "ko")),
+    [items],
+  );
+
   const visible = useMemo(() => {
-    const filtered =
-      activeType === "all" ? items : items.filter((o) => o.type === activeType);
+    const filtered = items.filter(
+      (o) =>
+        (activeType === "all" || o.type === activeType) &&
+        (activeOrg === "all" || o.organization === activeOrg),
+    );
     const sorted = [...filtered].sort((a, b) => {
       if (sort === "fit") return (b.score ?? -1) - (a.score ?? -1);
       const ta = a.deadline ? new Date(a.deadline).getTime() : Infinity;
@@ -50,7 +64,28 @@ export function JobsClient() {
       return ta - tb;
     });
     return sorted;
-  }, [items, activeType, sort]);
+  }, [items, activeType, activeOrg, sort]);
+
+  // 필터·정렬을 바꿀 때는 첫 페이지로 되돌린다.
+  const selectType = (t: string) => {
+    setActiveType(t);
+    setPage(1);
+  };
+  const selectOrg = (o: string) => {
+    setActiveOrg(o);
+    setPage(1);
+  };
+  const selectSort = (s: SortKey) => {
+    setSort(s);
+    setPage(1);
+  };
+
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const paged = visible.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   return (
     <div className="mx-auto w-full max-w-[1120px] px-6 py-7">
@@ -75,26 +110,48 @@ export function JobsClient() {
           <FilterChip
             label="전체"
             active={activeType === "all"}
-            onClick={() => setActiveType("all")}
+            onClick={() => selectType("all")}
           />
           {types.map((t) => (
             <FilterChip
               key={t}
               label={t}
               active={activeType === t}
-              onClick={() => setActiveType(t)}
+              onClick={() => selectType(t)}
             />
           ))}
+
+          {orgs.length > 1 && (
+            <select
+              value={activeOrg}
+              onChange={(e) => selectOrg(e.target.value)}
+              aria-label="국제기구 필터"
+              className={cn(
+                "ml-1 rounded-lg border px-3 py-1.5 text-[13px] font-bold transition-colors outline-none",
+                activeOrg === "all"
+                  ? "border-border bg-card text-muted-foreground hover:border-point"
+                  : "border-point bg-point-soft text-point-hover",
+              )}
+            >
+              <option value="all">전체 기구</option>
+              {orgs.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          )}
+
           <div className="border-border bg-card ml-auto flex gap-1.5 rounded-[9px] border p-[3px]">
             <SortButton
               label="적합도순"
               active={sort === "fit"}
-              onClick={() => setSort("fit")}
+              onClick={() => selectSort("fit")}
             />
             <SortButton
               label="마감임박순"
               active={sort === "dday"}
-              onClick={() => setSort("dday")}
+              onClick={() => selectSort("dday")}
             />
           </div>
         </div>
@@ -126,100 +183,19 @@ export function JobsClient() {
 
       {/* ── Cards ── */}
       <div className="mt-3.5 grid grid-cols-[repeat(auto-fill,minmax(312px,1fr))] gap-4">
-        {visible.map((o) => {
-          const fit = o.score != null ? fitBadge(o.score) : null;
-          const dday = ddayChip(o.deadline);
-          return (
-            <div
-              key={o.id}
-              className="bg-card border-border hover:border-point-border relative flex flex-col gap-3 rounded-2xl border p-[18px] transition-[box-shadow,border-color] hover:shadow-[0_8px_24px_rgba(45,63,102,0.08)]"
-            >
-              {/* 카드 전체를 덮는 상세 링크 (stretched link) */}
-              <Link
-                href={`/jobs/${o.id}`}
-                className="absolute inset-0 z-0 rounded-2xl"
-              >
-                <span className="sr-only">{o.title} 상세 보기</span>
-              </Link>
-
-              {/* org + bookmark */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-start gap-2.5">
-                  <div className="bg-primary flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[11px] font-extrabold text-white">
-                    {orgAbbrev(o.organization)}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-muted-foreground truncate text-xs font-bold">
-                      {o.organization}
-                    </div>
-                    {o.location && (
-                      <div className="truncate text-[11px] text-slate-400">
-                        {o.location}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <BookmarkButton id={o.id} className="-mt-1 -mr-1" />
-              </div>
-
-              {/* title + type tag */}
-              <div>
-                <div className="text-foreground text-base leading-snug font-extrabold tracking-tight">
-                  {o.title}
-                </div>
-                {o.type && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <span className="bg-point-soft text-point-hover rounded-md px-2.5 py-1 text-[11px] font-bold">
-                      {o.type}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {o.description && (
-                <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-600">
-                  {o.description}
-                </p>
-              )}
-
-              {/* footer */}
-              <div className="border-secondary mt-auto flex items-center justify-between gap-2.5 border-t pt-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {fit && (
-                    <span
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-xs font-extrabold tabular-nums",
-                        fit.cls,
-                      )}
-                    >
-                      {fit.pct}% 적합
-                    </span>
-                  )}
-                  {dday && (
-                    <span
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-xs font-bold tabular-nums",
-                        dday.cls,
-                      )}
-                    >
-                      {dday.label}
-                    </span>
-                  )}
-                </div>
-                <a
-                  href={o.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary border-border hover:border-point hover:text-point-hover relative z-10 inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors"
-                >
-                  지원하기
-                  <ArrowUpRight className="size-3.5" />
-                </a>
-              </div>
-            </div>
-          );
-        })}
+        {paged.map((o) => (
+          <JobCard key={o.id} job={o} />
+        ))}
       </div>
+
+      {/* ── Pagination ── */}
+      {state === "ok" && pageCount > 1 && (
+        <Pagination
+          page={currentPage}
+          pageCount={pageCount}
+          onChange={setPage}
+        />
+      )}
 
       {state === "error" && (
         <p className="text-muted-foreground mt-4 text-xs">
@@ -277,6 +253,89 @@ function SortButton({
       )}
     >
       {label}
+    </button>
+  );
+}
+
+function Pagination({
+  page,
+  pageCount,
+  onChange,
+}: {
+  page: number;
+  pageCount: number;
+  onChange: (next: number) => void;
+}) {
+  const go = (next: number) => {
+    onChange(Math.min(Math.max(1, next), pageCount));
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
+
+  return (
+    <nav
+      aria-label="공고 페이지"
+      className="mt-8 flex items-center justify-center gap-1.5"
+    >
+      <PagerArrow
+        label="이전 페이지"
+        disabled={page === 1}
+        onClick={() => go(page - 1)}
+      >
+        <ChevronLeft className="size-4" />
+      </PagerArrow>
+
+      {pages.map((p) => (
+        <button
+          key={p}
+          type="button"
+          aria-current={p === page ? "page" : undefined}
+          onClick={() => go(p)}
+          className={cn(
+            "h-9 min-w-9 rounded-[10px] px-2 text-sm font-bold tabular-nums transition-colors",
+            p === page
+              ? "bg-primary text-primary-foreground"
+              : "border-border bg-card text-muted-foreground hover:border-point hover:text-point-hover border",
+          )}
+        >
+          {p}
+        </button>
+      ))}
+
+      <PagerArrow
+        label="다음 페이지"
+        disabled={page === pageCount}
+        onClick={() => go(page + 1)}
+      >
+        <ChevronRight className="size-4" />
+      </PagerArrow>
+    </nav>
+  );
+}
+
+function PagerArrow({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="border-border bg-card text-muted-foreground hover:border-point hover:text-point-hover flex size-9 items-center justify-center rounded-[10px] border transition-colors disabled:pointer-events-none disabled:opacity-40"
+    >
+      {children}
     </button>
   );
 }

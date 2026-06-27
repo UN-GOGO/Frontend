@@ -2,21 +2,21 @@
 
 import { Bookmark } from "lucide-react";
 
-import { useBookmarks } from "@/lib/bookmarks";
+import { useBookmarks, type BookmarkItem } from "@/lib/bookmarks";
 import { cn } from "@/lib/utils";
 
-/** 공고 카드/상세에서 쓰는 북마크 토글 버튼. */
+/** 공고·인사이트 카드/상세에서 쓰는 북마크 토글 버튼. */
 export function BookmarkButton({
-  id,
+  item,
   className,
   iconClassName,
 }: {
-  id: string;
+  item: BookmarkItem;
   className?: string;
   iconClassName?: string;
 }) {
   const { isBookmarked, toggle } = useBookmarks();
-  const saved = isBookmarked(id);
+  const saved = isBookmarked(item.id);
 
   return (
     <button
@@ -26,7 +26,7 @@ export function BookmarkButton({
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggle(id);
+        toggle(item);
       }}
       className={cn(
         "relative z-10 inline-flex shrink-0 items-center justify-center rounded-lg p-1 transition-colors",
