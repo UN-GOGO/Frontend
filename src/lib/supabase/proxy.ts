@@ -49,7 +49,7 @@ export async function updateSession(request: NextRequest) {
   let isOnboarded = false;
   if (user) {
     const { data: profile } = await supabase
-      .from("profiles")
+      .from("users")
       .select("onboarded")
       .eq("id", user.id)
       .maybeSingle();

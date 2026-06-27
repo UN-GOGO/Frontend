@@ -147,7 +147,7 @@ export default function SignupPage() {
     }
 
     const { error: profileError } = await supabase
-      .from("profiles")
+      .from("users")
       .update({ onboarded: true })
       .eq("id", data.user.id);
 
