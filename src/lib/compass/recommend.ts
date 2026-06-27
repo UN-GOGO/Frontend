@@ -20,7 +20,7 @@ export async function getRecommendation(
 ): Promise<RecommendResult> {
   try {
     const data = await apiPost<{ profile: string }, RecommendResponse>(
-      "/recommend",
+      "/compass/recommend",
       { profile: profileText },
       init,
     );

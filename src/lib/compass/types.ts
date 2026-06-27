@@ -42,6 +42,13 @@ export type BuiltProfile = {
   summary: ProfileSummary;
 };
 
+/** 현재 공석 배지 (백엔드가 외교부 공석 API와 매칭해 채워줌) */
+export type PostingBadge = {
+  count: number;
+  types: string; // 예: "인턴십 2 · JPO 1"
+  sample: string; // 대표 공석 제목
+};
+
 /** 추천 결과 한 건 */
 export type Recommendation = {
   abbr: string;
@@ -51,12 +58,22 @@ export type Recommendation = {
   matched: string[];
   missing: string[];
   lang_tip?: string;
+  postings?: PostingBadge;
 };
 
-/** POST /recommend 응답 */
+/** 추가로 둘러볼 기구 묶음 */
+export type ExploreGroup = {
+  topic: string;
+  orgs: string[];
+  note?: string;
+};
+
+/** POST /compass/recommend 응답 */
 export type RecommendResponse = {
   profile_summary?: string;
   needle_label?: string;
   recommendations: Recommendation[];
+  explore?: ExploreGroup[];
   advice?: string;
+  engine?: string; // 예: "gpt-4o-mini"
 };

@@ -33,6 +33,7 @@ export async function saveCompassResult(params: {
       needle_label: params.data.needle_label ?? null,
       advice: params.data.advice ?? null,
       recommendations: params.data.recommendations,
+      explore: params.data.explore ?? [],
       is_ai: params.isAI,
     });
 
