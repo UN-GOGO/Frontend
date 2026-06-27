@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, Briefcase, ChevronRight, Newspaper } from "lucide-react";
+import {
+  Bell,
+  Briefcase,
+  ChevronRight,
+  Compass,
+  Newspaper,
+} from "lucide-react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import {
@@ -12,6 +18,10 @@ import {
   type UserStats,
 } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
+import {
+  getNavigatorResults,
+  type NavigatorResult,
+} from "@/lib/compass/history";
 import { useBookmarks } from "@/lib/bookmarks";
 
 function StatCard({ value, label }: { value: string; label: string }) {
@@ -30,18 +40,21 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [navResults, setNavResults] = useState<NavigatorResult[]>([]);
 
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
       try {
         const userId = await getUserId();
-        const [p, s] = await Promise.allSettled([
+        const [p, s, nav] = await Promise.allSettled([
           getProfile(userId, { signal: ctrl.signal }),
           getUserStats(userId, { signal: ctrl.signal }),
+          getNavigatorResults(3),
         ]);
         if (p.status === "fulfilled") setProfile(p.value);
         if (s.status === "fulfilled") setStats(s.value);
+        if (nav.status === "fulfilled") setNavResults(nav.value);
         setState("ok");
       } catch (e: unknown) {
         if (ctrl.signal.aborted) return;
@@ -103,6 +116,40 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
         </Link>
       </div>
 
+      {/* 나침반 결과 */}
+      <div className="mb-6">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-foreground flex items-center gap-2 text-[15px] font-extrabold">
+            <Compass className="text-point-hover size-[18px]" />내 나침반 결과
+          </h2>
+          <Link
+            href="/compass"
+            className="text-point-hover text-xs font-bold hover:underline"
+          >
+            {navResults.length ? "다시 진단하기 →" : "진단하러 가기 →"}
+          </Link>
+        </div>
+
+        {navResults.length === 0 ? (
+          <div className="border-border text-muted-foreground rounded-[14px] border border-dashed px-5 py-8 text-center text-sm">
+            아직 나침반 진단 결과가 없어요.
+            <br />
+            <Link
+              href="/compass"
+              className="text-point-hover mt-1 inline-block text-xs font-bold hover:underline"
+            >
+              나에게 맞는 국제기구 찾기 →
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {navResults.map((r) => (
+              <NavResultCard key={r.id} result={r} />
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Menu */}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         {(
@@ -146,5 +193,71 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function scoreClass(pct: number) {
+  if (pct >= 85) return "bg-point text-white";
+  if (pct >= 70) return "bg-point-soft text-point-hover";
+  return "bg-secondary text-muted-foreground";
+}
+
+function NavResultCard({ result }: { result: NavigatorResult }) {
+  const date = (() => {
+    try {
+      return new Date(result.createdAt).toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch {
+      return "";
+    }
+  })();
+  const recs = result.recommendations.slice(0, 3);
+
+  return (
+    <Link
+      href={`/compass/results/${result.id}`}
+      className="border-border bg-card hover:border-point-border block rounded-[16px] border p-4 transition-colors hover:shadow-sm"
+    >
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <span className="text-muted-foreground text-[11px] font-medium">
+          {date}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="border-border text-muted-foreground rounded-full border bg-white px-2 py-0.5 text-[10px] font-semibold">
+            {result.isAi ? "AI 분석" : "규칙기반"}
+          </span>
+          <ChevronRight className="size-4 text-[#cbd5e1]" />
+        </div>
+      </div>
+
+      {result.needleLabel && (
+        <p className="text-foreground mb-3 text-sm leading-snug font-extrabold text-balance">
+          {result.needleLabel}
+        </p>
+      )}
+
+      {recs.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {recs.map((r, i) => (
+            <span
+              key={i}
+              className="border-border inline-flex items-center gap-1.5 rounded-full border bg-white py-1 pr-1 pl-2.5 text-[11px] font-semibold"
+            >
+              <span className="text-foreground/80 max-w-[180px] truncate">
+                {r.org || r.abbr}
+              </span>
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${scoreClass(r.score ?? 0)}`}
+              >
+                {r.score}%
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+    </Link>
   );
 }

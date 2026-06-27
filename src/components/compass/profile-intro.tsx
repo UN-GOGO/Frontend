@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { getProfile, updateProfile, type ProfileUpdate } from "@/lib/api/iogo";
+import { getUserId } from "@/lib/api/user";
 import type { ProfileSummary } from "@/lib/compass/types";
 
 const controlClass =
@@ -45,10 +47,45 @@ export function ProfileIntro({
   const [secondRaw, setSecondRaw] = useState("");
   const [etc, setEtc] = useState("");
 
+  // 마이페이지 → 나침반: 저장된 프로필에서 겹치는 필드(전공·학력)만 미리 채운다.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const id = await getUserId();
+        const p = await getProfile(id);
+        if (cancelled) return;
+        if (p.major) setMajor(p.major);
+        if (p.education) setDegree(p.education); // 학력 옵션이 양쪽 동일
+      } catch {
+        // 프로필 없음(404)·비로그인 → 무시
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const start = () => {
     let second = secondRaw;
     if (secondRaw === "기타")
       second = etc.trim() ? `기타(${etc.trim()})` : "기타";
+
+    // 나침반 → 마이페이지: 겹치는 필드(전공·학력)만 프로필에 저장(best-effort).
+    // 빈 값은 보내지 않아 기존 프로필을 덮어쓰지 않는다.
+    void (async () => {
+      try {
+        const patch: ProfileUpdate = {};
+        if (major.trim()) patch.major = major.trim();
+        if (degree) patch.education = degree;
+        if (Object.keys(patch).length === 0) return;
+        const id = await getUserId();
+        await updateProfile(id, patch);
+      } catch {
+        // 저장 실패는 무시 — 진단 흐름은 막지 않는다
+      }
+    })();
+
     onStart({ nick: "", major, degree, exp, english, second });
   };
 
