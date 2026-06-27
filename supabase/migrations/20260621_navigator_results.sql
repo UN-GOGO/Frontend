@@ -1,7 +1,7 @@
 -- 나침반(Compass) 추천 결과 저장 테이블
 -- 흐름: 퀴즈 응답 → 백엔드 /recommend(Gemini Top3) → 결과를 이 테이블에 저장
 -- 설계: 추천 1회 실행 = 1행(이력 누적), 결과는 jsonb 통째 저장, 입력 프로필 포함
--- 로그인 유저(profiles.id = auth.users.id)와 연결
+-- 로그인 유저(users.id = auth.users.id)와 연결
 
 create table if not exists public.navigator_results (
   id uuid not null default gen_random_uuid(),
@@ -23,7 +23,7 @@ create table if not exists public.navigator_results (
 
   constraint navigator_results_pkey primary key (id),
   constraint navigator_results_user_id_fkey
-    foreign key (user_id) references public.profiles (id) on delete cascade
+    foreign key (user_id) references public.users (id) on delete cascade
 );
 
 -- 유저별 최신 이력 조회 최적화
