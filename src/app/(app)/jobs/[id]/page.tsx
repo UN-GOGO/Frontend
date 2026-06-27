@@ -1,7 +1,7 @@
 import { JobDetailClient } from "@/components/ungogo/job-detail-client";
 
 export const metadata = {
-  title: "공고 상세 — Polaris",
+  title: "공고 상세 — I-OGO",
 };
 
 export default async function JobDetailPage({

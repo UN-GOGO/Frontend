@@ -74,7 +74,10 @@ export function JobDetailClient({ id }: { id: string }) {
                 )}
               </div>
             </div>
-            <BookmarkButton id={job.id} iconClassName="size-6" />
+            <BookmarkButton
+              item={{ id: job.id, kind: "job", data: job }}
+              iconClassName="size-6"
+            />
           </div>
 
           {/* title */}

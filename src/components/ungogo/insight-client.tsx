@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { ConnBadge, type ConnState } from "./conn-badge";
+import { InsightCard } from "./insight-card";
 import {
   getRecommendations,
   getUserStats,
@@ -39,7 +40,7 @@ export function InsightClient() {
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-[760px] px-6 py-8">
+    <div className="mx-auto w-full max-w-[1120px] px-6 py-8">
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-foreground text-xl font-bold">인사이트</h1>
         <ConnBadge state={state} error={error} />
@@ -71,38 +72,11 @@ export function InsightClient() {
             </div>
           )}
 
-        <ul className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
           {recs?.recommended_articles?.map((a) => (
-            <li
-              key={a.id}
-              className="border-border rounded-xl border p-4 text-sm"
-            >
-              <div className="text-foreground mb-1 font-semibold">
-                {a.source_url ? (
-                  <a
-                    href={a.source_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:underline"
-                  >
-                    {a.title}
-                  </a>
-                ) : (
-                  a.title
-                )}
-              </div>
-              {(a.summary || a.content) && (
-                <p className="text-muted-foreground line-clamp-2">
-                  {a.summary ?? a.content}
-                </p>
-              )}
-              <div className="text-muted-foreground mt-2 text-[11px]">
-                {a.source_name ?? a.source_api ?? "출처 미상"}
-                {a.published_at ? ` · ${a.published_at.slice(0, 10)}` : ""}
-              </div>
-            </li>
+            <InsightCard key={a.id} article={a} />
           ))}
-        </ul>
+        </div>
 
         {recs && recs.recommended_articles.length === 0 && (
           <p className="text-muted-foreground text-sm">
