@@ -1,5 +1,5 @@
 // 나침반(Compass) — 국제기구 추천 기능 타입
-// 백엔드 /recommend 응답 계약과 1:1로 맞춘다.
+// 백엔드 /compass/recommend 응답 계약과 1:1로 맞춘다.
 
 /** 인트로에서 받는 기본 프로필(모두 선택 입력) */
 export type ProfileSummary = {

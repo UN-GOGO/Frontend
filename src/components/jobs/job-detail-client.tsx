@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { BookmarkButton } from "@/components/bookmarks/bookmark-button";
-import { getOpportunity, type Opportunity } from "@/lib/api/iogo";
+import { getOpportunity, logClick, type Opportunity } from "@/lib/api/iogo";
+import { getUserId } from "@/lib/api/user";
 import { ddayChip, fitBadge, orgAbbrev } from "@/lib/opportunity";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,12 @@ export function JobDetailClient({ id }: { id: string }) {
       .then((data) => {
         setJob(data);
         setState("ok");
+        // 공고 상세 조회 = 해당 기구 관심 신호로 기록 (개인화 입력).
+        if (data?.organization) {
+          void getUserId()
+            .then((uid) => logClick(uid, data.organization))
+            .catch(() => {});
+        }
       })
       .catch((e: unknown) => {
         if (ctrl.signal.aborted) return;

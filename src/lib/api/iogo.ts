@@ -104,7 +104,8 @@ export function sendChat(
   >("/chat", { message, user_id: userId, session_id: sessionId }, init);
 }
 
-// ===== 개인화 추천 · 통계 (recommend) =====
+// ===== 개인화 추천 · 통계 (insight) =====
+// 백엔드 개편: prefix /recommend → /insight (insight.py)
 export type NewsArticle = {
   id: number;
   title: string;
@@ -115,14 +116,6 @@ export type NewsArticle = {
   source_api?: string | null;
   published_at?: string | null;
   created_at?: string | null;
-};
-
-export type RecommendResult = {
-  user_id: string;
-  type: string;
-  extracted_keywords?: string[];
-  extracted_orgs?: string[];
-  recommended_articles: NewsArticle[];
 };
 
 export type OrgRatio = { name: string; count: number; percentage: number };
@@ -138,22 +131,83 @@ export type UserStats =
       top_keywords: KeywordCount[];
     };
 
-export function getRecommendations(
-  userId: string,
-  init?: { signal?: AbortSignal },
-): Promise<RecommendResult> {
-  return apiGet<RecommendResult>(
-    `/recommend/${encodeURIComponent(userId)}`,
-    init,
-  );
-}
-
 export function getUserStats(
   userId: string,
   init?: { signal?: AbortSignal },
 ): Promise<UserStats> {
   return apiGet<UserStats>(
-    `/recommend/stats/${encodeURIComponent(userId)}`,
+    `/insight/stats/${encodeURIComponent(userId)}`,
     init,
+  );
+}
+
+// ===== 개인화 공고 / 인사이트 (personalized) =====
+// 백엔드 신규 엔드포인트. has_compass=false면 나침반 검사 전 상태.
+
+/** 매칭 점수가 포함된 개인화 공고 아이템. score는 0~1. */
+export type PersonalizedOpportunity = Opportunity & {
+  match_score?: number | null;
+};
+
+export type PersonalizedOpportunities = {
+  has_compass: boolean;
+  items: PersonalizedOpportunity[];
+};
+
+/** GET /opportunities/personalized/{user_id} */
+export function getPersonalizedOpportunities(
+  userId: string,
+  init?: { signal?: AbortSignal },
+): Promise<PersonalizedOpportunities> {
+  return apiGet<PersonalizedOpportunities>(
+    `/opportunities/personalized/${encodeURIComponent(userId)}`,
+    init,
+  );
+}
+
+/** 매칭률·추천 이유가 포함된 개인화 뉴스 아이템. */
+export type PersonalizedInsightItem = NewsArticle & {
+  match_rate?: number | null;
+  reason?: string | null;
+};
+
+export type PersonalizedInsights = {
+  has_compass: boolean;
+  items: PersonalizedInsightItem[];
+};
+
+/** GET /insight/personalized/{user_id} */
+export function getPersonalizedInsights(
+  userId: string,
+  init?: { signal?: AbortSignal },
+): Promise<PersonalizedInsights> {
+  return apiGet<PersonalizedInsights>(
+    `/insight/personalized/${encodeURIComponent(userId)}`,
+    init,
+  );
+}
+
+// ===== 활동 로깅 (insight/log) =====
+// 개인화 추천의 입력 신호. 실패해도 UX를 막지 않도록 호출부에서 catch 무시 권장.
+
+/** POST /insight/log/search — 검색 키워드 기록 */
+export function logSearch(userId: string, keyword: string): Promise<unknown> {
+  return apiPost<{ user_id: string; keyword: string }, unknown>(
+    "/insight/log/search",
+    { user_id: userId, keyword },
+  );
+}
+
+/** POST /insight/log/click — 국제기구 클릭 기록 */
+export function logClick(
+  userId: string,
+  targetOrganization: string,
+): Promise<unknown> {
+  return apiPost<{ user_id: string; target_organization: string }, unknown>(
+    "/insight/log/click",
+    {
+      user_id: userId,
+      target_organization: targetOrganization,
+    },
   );
 }
