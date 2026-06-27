@@ -5,17 +5,19 @@ import { useEffect, useState } from "react";
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { InsightCard } from "@/components/insight/insight-card";
 import {
-  getRecommendations,
+  getPersonalizedInsight,
   getUserStats,
-  type RecommendResult,
+  type PersonalizedInsightResponse,
   type UserStats,
 } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
+import { CompassBanner } from "@/components/common/compass-banner";
 
 export function InsightClient() {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
-  const [recs, setRecs] = useState<RecommendResult | null>(null);
+  const [recs, setRecs] = useState<PersonalizedInsightResponse | null>(null);
+  const [hasCompass, setHasCompass] = useState(true);
   const [stats, setStats] = useState<UserStats | null>(null);
 
   useEffect(() => {
@@ -24,10 +26,11 @@ export function InsightClient() {
       try {
         const userId = await getUserId();
         const [r, s] = await Promise.all([
-          getRecommendations(userId, { signal: ctrl.signal }),
+          getPersonalizedInsight(userId, { signal: ctrl.signal }),
           getUserStats(userId, { signal: ctrl.signal }),
         ]);
         setRecs(r);
+        setHasCompass(r.has_compass);
         setStats(s);
         setState("ok");
       } catch (e: unknown) {
@@ -41,6 +44,7 @@ export function InsightClient() {
 
   return (
     <div className="mx-auto w-full max-w-[1120px] px-6 py-8">
+      {state === "ok" && !hasCompass && <CompassBanner />}
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-foreground text-xl font-bold">인사이트</h1>
         <ConnBadge state={state} error={error} />
@@ -73,12 +77,19 @@ export function InsightClient() {
           )}
 
         <div className="flex flex-col gap-3">
-          {recs?.recommended_articles?.map((a) => (
-            <InsightCard key={a.id} article={a} />
+          {recs?.items?.map((a) => (
+            <div key={a.id} className="relative">
+              {a.match_score > 0 && (
+                <span className="bg-point absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[11px] font-extrabold text-white">
+                  {Math.round(a.match_score * 100)}% 매칭
+                </span>
+              )}
+              <InsightCard article={a} />
+            </div>
           ))}
         </div>
 
-        {recs && recs.recommended_articles.length === 0 && (
+        {recs && recs.items.length === 0 && (
           <p className="text-muted-foreground text-sm">
             추천할 뉴스가 없습니다.
           </p>

@@ -5,7 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { JobCard } from "@/components/jobs/job-card";
-import { getOpportunities, type Opportunity } from "@/lib/api/iogo";
+import {
+  getPersonalizedOpportunities,
+  type PersonalizedOpportunity,
+} from "@/lib/api/iogo";
+import { getUserId } from "@/lib/api/user";
+import { CompassBanner } from "@/components/common/compass-banner";
 import { cn } from "@/lib/utils";
 
 type SortKey = "fit" | "dday";
@@ -15,7 +20,8 @@ const PAGE_SIZE = 9;
 export function JobsClient() {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<Opportunity[]>([]);
+  const [items, setItems] = useState<PersonalizedOpportunity[]>([]);
+  const [hasCompass, setHasCompass] = useState(true);
   const [activeType, setActiveType] = useState<string>("all");
   const [activeOrg, setActiveOrg] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("fit");
@@ -23,16 +29,21 @@ export function JobsClient() {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    getOpportunities({ limit: 100 }, { signal: ctrl.signal })
-      .then((data) => {
-        setItems(data);
+    (async () => {
+      try {
+        const userId = await getUserId();
+        const data = await getPersonalizedOpportunities(userId, {
+          signal: ctrl.signal,
+        });
+        setItems(data.items);
+        setHasCompass(data.has_compass);
         setState("ok");
-      })
-      .catch((e: unknown) => {
+      } catch (e: unknown) {
         if (ctrl.signal.aborted) return;
         setError(e instanceof Error ? e.message : String(e));
         setState("error");
-      });
+      }
+    })();
     return () => ctrl.abort();
   }, []);
 
@@ -89,6 +100,7 @@ export function JobsClient() {
 
   return (
     <div className="mx-auto w-full max-w-[1120px] px-6 py-7">
+      {state === "ok" && !hasCompass && <CompassBanner />}
       {/* ── Header ── */}
       <div className="mb-1 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -184,7 +196,14 @@ export function JobsClient() {
       {/* ── Cards ── */}
       <div className="mt-3.5 grid grid-cols-[repeat(auto-fill,minmax(312px,1fr))] gap-4">
         {paged.map((o) => (
-          <JobCard key={o.id} job={o} />
+          <div key={o.id} className="relative">
+            {o.match_score > 0 && (
+              <span className="bg-point absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[11px] font-extrabold text-white">
+                {Math.round(o.match_score * 100)}% 매칭
+              </span>
+            )}
+            <JobCard job={o} />
+          </div>
         ))}
       </div>
 
