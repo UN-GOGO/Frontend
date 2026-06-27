@@ -104,7 +104,7 @@ export function sendChat(
   >("/chat", { message, user_id: userId, session_id: sessionId }, init);
 }
 
-// ===== 개인화 추천 · 통계 (recommend) =====
+// ===== 인사이트 추천 · 통계 (insight) =====
 export type NewsArticle = {
   id: number;
   title: string;
@@ -143,7 +143,7 @@ export function getRecommendations(
   init?: { signal?: AbortSignal },
 ): Promise<RecommendResult> {
   return apiGet<RecommendResult>(
-    `/recommend/${encodeURIComponent(userId)}`,
+    `/insight/${encodeURIComponent(userId)}`,
     init,
   );
 }
@@ -153,7 +153,51 @@ export function getUserStats(
   init?: { signal?: AbortSignal },
 ): Promise<UserStats> {
   return apiGet<UserStats>(
-    `/recommend/stats/${encodeURIComponent(userId)}`,
+    `/insight/stats/${encodeURIComponent(userId)}`,
+    init,
+  );
+}
+
+// ===== 개인화 피드 =====
+export type PersonalizedOpportunity = Opportunity & {
+  match_score: number;
+  match_reasons: string[];
+};
+
+export type PersonalizedInsightItem = NewsArticle & {
+  match_score: number;
+  match_reasons: string[];
+};
+
+export type PersonalizedOpportunityResponse = {
+  has_compass: boolean;
+  items: PersonalizedOpportunity[];
+};
+
+export type PersonalizedInsightResponse = {
+  has_compass: boolean;
+  items: PersonalizedInsightItem[];
+  type?: string;
+  extracted_keywords?: string[];
+  extracted_orgs?: string[];
+};
+
+export function getPersonalizedOpportunities(
+  userId: string,
+  init?: { signal?: AbortSignal },
+): Promise<PersonalizedOpportunityResponse> {
+  return apiGet<PersonalizedOpportunityResponse>(
+    `/opportunities/personalized/${encodeURIComponent(userId)}`,
+    init,
+  );
+}
+
+export function getPersonalizedInsight(
+  userId: string,
+  init?: { signal?: AbortSignal },
+): Promise<PersonalizedInsightResponse> {
+  return apiGet<PersonalizedInsightResponse>(
+    `/insight/personalized/${encodeURIComponent(userId)}`,
     init,
   );
 }
