@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, ArrowUp, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ConnBadge, type ConnState } from "./conn-badge";
@@ -14,11 +15,11 @@ type Msg = {
 };
 
 const copy = {
-  botName: "폴라리스 취준봇",
+  botName: "I-OGO 취준봇",
   botTag: "실시간 공공데이터",
   sub: "국제기구 공고 탐색부터 지원 준비까지 도와드려요.",
   aiBadge: "AI 생성",
-  emptyTitle: "안녕하세요, 폴라리스 취준봇이에요.",
+  emptyTitle: "안녕하세요, I-OGO 취준봇이에요.",
   emptyDesc:
     "전공·언어·스킬에 맞는 국제기구 공고를 찾아 적합도와 함께 정리해 드려요. 아래에서 골라보거나 편하게 물어보세요.",
   suggestLabel: "이렇게 물어보세요",
@@ -36,7 +37,7 @@ const SUGGESTIONS = [
 
 const AVATAR_GRADIENT = "linear-gradient(135deg, var(--point), var(--primary))";
 
-export function ChatClient() {
+export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | undefined>();
@@ -84,7 +85,7 @@ export function ChatClient() {
   const isEmpty = msgs.length === 0;
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[860px] flex-col px-6 py-7">
+    <div className="mx-auto flex h-full w-full max-w-[1120px] flex-col px-6 py-7">
       {/* ── Chatbot identity header ── */}
       <div className="border-border mb-5 flex items-center gap-3 border-b pb-4">
         <div
@@ -115,6 +116,49 @@ export function ChatClient() {
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-2">
         {isEmpty ? (
           <div className="flex flex-1 flex-col gap-5 py-1.5">
+            {!isLoggedIn && (
+              <div
+                className="relative flex animate-[pol-up_0.35s_ease] flex-col items-center overflow-hidden rounded-[20px] px-6 py-7 text-center"
+                style={{ background: "var(--primary)" }}
+              >
+                <span
+                  className="pointer-events-none absolute -top-11 -right-8 size-[150px] rounded-full blur-[9px]"
+                  style={{ background: "rgba(109,91,208,0.25)" }}
+                />
+                <span
+                  className="relative mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                  style={{
+                    background: "rgba(109,91,208,0.22)",
+                    color: "#cfc6f5",
+                  }}
+                >
+                  <span className="bg-point size-1.5 animate-[pol-blink_1.6s_infinite] rounded-full" />
+                  외교부 공공데이터 기반 · SDGs 연계
+                </span>
+                <h2 className="relative text-[20px] leading-tight font-extrabold tracking-tight whitespace-pre-line text-white">
+                  전 세계 공고에서 나에게 맞는 길을 찾다
+                </h2>
+                <p className="relative mt-2.5 max-w-[600px] text-[12.5px] leading-relaxed text-[#b9c2da]">
+                  AI가 외교부 공공데이터를 매일 분석해, 당신의 전공·언어·스킬에
+                  맞는 국제기구 공고를 골라 정리합니다.
+                </p>
+                <div className="relative mt-4 flex flex-wrap items-center justify-center gap-2.5">
+                  <Link
+                    href="/login"
+                    className="bg-point hover:bg-point-hover rounded-[10px] px-5 py-2.5 text-[13px] font-extrabold text-white transition-colors"
+                  >
+                    로그인
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="rounded-[10px] border-[1.5px] border-white/30 px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:border-white"
+                  >
+                    회원가입
+                  </Link>
+                </div>
+              </div>
+            )}
+
             <AiBubble>
               <p className="text-foreground text-[15px] font-bold">
                 {copy.emptyTitle}

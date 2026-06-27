@@ -1,12 +1,9 @@
-import { ScreenPlaceholder } from "@/components/layout/screen-placeholder";
+import { NotificationsClient } from "@/components/ungogo/notifications-client";
+
+export const metadata = {
+  title: "알림 — I-OGO",
+};
 
 export default function NotificationsPage() {
-  return (
-    <ScreenPlaceholder
-      copy={{
-        title: "알림",
-        subtitle: "마감 임박·신규 공석·추천·행사 알림을 모아봅니다.",
-      }}
-    />
-  );
+  return <NotificationsClient />;
 }
