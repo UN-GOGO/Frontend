@@ -1,13 +1,19 @@
 import { ChatClient } from "@/components/ungogo/chat-client";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
-  title: "챗봇 — Polaris",
+  title: "챗봇 — I-OGO",
 };
 
-export default function ChatPage() {
+export default async function ChatPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <div className="flex h-full flex-col">
-      <ChatClient />
+      <ChatClient isLoggedIn={!!user} />
     </div>
   );
 }
