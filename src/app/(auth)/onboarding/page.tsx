@@ -115,9 +115,8 @@ export default function OnboardingPage() {
 
     if (user) {
       const { error } = await supabase
-        .from("profiles")
-        .update({ onboarded: true })
-        .eq("id", user.id);
+        .from("users")
+        .upsert({ id: user.id, onboarded: true });
 
       if (error) {
         setSubmitting(false);
