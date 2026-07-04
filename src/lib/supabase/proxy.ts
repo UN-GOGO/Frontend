@@ -34,27 +34,7 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const protectedPrefixes = [
-    "/compass",
-    "/jobs",
-    "/insight",
-    "/mypage",
-    "/notifications",
-    "/profile",
-  ];
-  const isProtected = protectedPrefixes.some((p) => pathname.startsWith(p));
-  const isOnboardingRoute = pathname.startsWith("/onboarding");
   const isAuthRoute = pathname === "/login" || pathname === "/signup";
-
-  let isOnboarded = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("onboarded")
-      .eq("id", user.id)
-      .maybeSingle();
-    isOnboarded = Boolean(profile?.onboarded);
-  }
 
   const redirectTo = (path: string) => {
     const url = request.nextUrl.clone();
@@ -62,24 +42,14 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   };
 
+  // 게스트는 모든 콘텐츠 페이지 접근 허용(로그인 없이 둘러보기).
+  // 온보딩은 더 이상 라우트 게이팅이 아니라 메인 화면 팝업으로 처리한다.
   if (!user) {
-    if (isProtected || isOnboardingRoute) {
-      return redirectTo("/login");
-    }
     return supabaseResponse;
   }
 
-  if (!isOnboarded) {
-    if (isOnboardingRoute) {
-      return supabaseResponse;
-    }
-    if (isProtected || isAuthRoute) {
-      return redirectTo("/onboarding");
-    }
-    return supabaseResponse;
-  }
-
-  if (isAuthRoute || isOnboardingRoute) {
+  // 로그인 상태에서 로그인/회원가입 페이지로 오면 마이페이지로 보낸다.
+  if (isAuthRoute) {
     return redirectTo("/mypage");
   }
 

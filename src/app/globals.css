@@ -52,27 +52,27 @@
   --popover: #ffffff;
   --popover-foreground: #1e293b;
 
-  --primary: #2d3f66;
+  --primary: #1f3a8a;
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #475569;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  --accent: #ece9fb;
-  --accent-foreground: #5a49b8;
+  --accent: #d7edfb;
+  --accent-foreground: #1f3a8a;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 
   --border: #e6edf2;
   --input: #e6edf2;
-  --ring: #6d5bd0;
+  --ring: #117dff;
 
-  /* "point" = violet (CTA / 적합도 / AI accent) */
-  --point: #6d5bd0;
+  /* "point" = blue (CTA / 적합도 / AI accent) */
+  --point: #68befd;
   --point-foreground: #ffffff;
-  --point-hover: #5a49b8;
-  --point-soft: #ece9fb;
-  --point-border: #dad3f5;
+  --point-hover: #117dff;
+  --point-soft: #d7edfb;
+  --point-border: #a9dbfb;
 
   --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -125,5 +125,16 @@
 @keyframes pol-orbit {
   to {
     transform: rotate(360deg);
+  }
+}
+@keyframes pol-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  80%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
   }
 }

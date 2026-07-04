@@ -77,7 +77,7 @@ export default function SignupPage() {
   };
 
   const onSocial = async (provider: OAuthProvider) => {
-    const error = await signInWithProvider(provider, "/onboarding");
+    const error = await signInWithProvider(provider, "/");
     if (error) {
       setError("root", {
         message: "소셜 가입에 실패했어요. 잠시 후 다시 시도해 주세요.",
@@ -146,19 +146,8 @@ export default function SignupPage() {
       return;
     }
 
-    const { error: profileError } = await supabase
-      .from("users")
-      .update({ onboarded: true })
-      .eq("id", data.user.id);
-
-    if (profileError) {
-      setError("root", {
-        message: "가입에 실패했어요. 잠시 후 다시 시도해 주세요.",
-      });
-      return;
-    }
-
-    router.push("/onboarding");
+    // 온보딩은 메인 화면 팝업으로 처리하므로 가입 후 홈으로 보낸다.
+    router.push("/");
   };
 
   return (
@@ -184,7 +173,7 @@ export default function SignupPage() {
           <form
             onSubmit={handleSubmit(onSubmit)}
             noValidate
-            className="border-border bg-card flex flex-col gap-3 rounded-2xl border p-6 shadow-[0_12px_32px_rgba(45,63,102,0.06)]"
+            className="border-border bg-card flex flex-col gap-3 rounded-2xl border p-6 shadow-[0_12px_32px_rgba(31,58,138,0.06)]"
           >
             {/* 소셜 가입 */}
             <SocialButton
@@ -406,7 +395,7 @@ export default function SignupPage() {
             <Button
               type="submit"
               disabled={!requiredOk || otpStatus !== "verified" || isSubmitting}
-              className="mt-1.5 h-auto w-full gap-2 rounded-[11px] p-3 font-extrabold hover:bg-[#243152] disabled:cursor-not-allowed disabled:bg-[#AEB6C7] disabled:opacity-100"
+              className="mt-1.5 h-auto w-full gap-2 rounded-[11px] p-3 font-extrabold hover:bg-[#117DFF] disabled:cursor-not-allowed disabled:bg-[#AEB6C7] disabled:opacity-100"
             >
               {isSubmitting && (
                 <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />

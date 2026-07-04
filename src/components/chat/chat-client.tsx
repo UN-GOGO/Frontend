@@ -85,9 +85,9 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   const isEmpty = msgs.length === 0;
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[1120px] flex-col px-6 py-7">
-      {/* ── Chatbot identity header ── */}
-      <div className="border-border mb-5 flex items-center gap-3 border-b pb-4">
+    <div className="mx-auto flex min-h-full w-full max-w-[1120px] flex-col px-6">
+      {/* ── Chatbot identity header (상단 고정) ── */}
+      <div className="border-border bg-background sticky top-0 z-20 mb-5 flex items-center gap-3 border-b pt-7 pb-4">
         <div
           className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl text-white"
           style={{ background: AVATAR_GRADIENT }}
@@ -112,8 +112,8 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
         </div>
       </div>
 
-      {/* ── Conversation ── */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-2">
+      {/* ── Conversation (페이지 전체 스크롤) ── */}
+      <div className="flex flex-1 flex-col gap-4 pb-2">
         {isEmpty ? (
           <div className="flex flex-1 flex-col gap-5 py-1.5">
             {!isLoggedIn && (
@@ -123,13 +123,13 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
               >
                 <span
                   className="pointer-events-none absolute -top-11 -right-8 size-[150px] rounded-full blur-[9px]"
-                  style={{ background: "rgba(109,91,208,0.25)" }}
+                  style={{ background: "rgba(104,190,253,0.25)" }}
                 />
                 <span
                   className="relative mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold"
                   style={{
-                    background: "rgba(109,91,208,0.22)",
-                    color: "#cfc6f5",
+                    background: "rgba(104,190,253,0.22)",
+                    color: "#D7EDFB",
                   }}
                 >
                   <span className="bg-point size-1.5 animate-[pol-blink_1.6s_infinite] rounded-full" />
@@ -246,9 +246,9 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Input bar ── */}
-      <div className="from-background sticky bottom-0 bg-gradient-to-t to-transparent pt-3.5">
-        <div className="border-border bg-card focus-within:border-point flex items-center gap-2 rounded-2xl border-[1.5px] py-2 pr-2 pl-3.5 shadow-[0_6px_20px_rgba(45,63,102,0.06)] transition-colors">
+      {/* ── Input bar (하단 고정) ── */}
+      <div className="from-background sticky bottom-0 z-20 bg-gradient-to-t to-transparent pt-3.5 pb-5">
+        <div className="border-border bg-card focus-within:border-point flex items-center gap-2 rounded-2xl border-[1.5px] py-2 pr-2 pl-3.5 shadow-[0_6px_20px_rgba(31,58,138,0.06)] transition-colors">
           <Sparkles className="text-point size-4 shrink-0" />
           <input
             value={input}
