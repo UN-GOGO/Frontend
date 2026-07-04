@@ -69,7 +69,7 @@ export function JobsClient() {
         (activeOrg === "all" || o.organization === activeOrg),
     );
     const sorted = [...filtered].sort((a, b) => {
-      if (sort === "fit") return (b.score ?? -1) - (a.score ?? -1);
+      if (sort === "fit") return (b.match_score ?? -1) - (a.match_score ?? -1);
       const ta = a.deadline ? new Date(a.deadline).getTime() : Infinity;
       const tb = b.deadline ? new Date(b.deadline).getTime() : Infinity;
       return ta - tb;
