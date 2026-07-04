@@ -15,7 +15,7 @@ export function JobCard({ job: o }: { job: Opportunity }) {
   const dday = ddayChip(o.deadline);
 
   return (
-    <div className="bg-card border-border hover:border-point-border relative flex flex-col gap-3 rounded-2xl border p-[18px] transition-[box-shadow,border-color] hover:shadow-[0_8px_24px_rgba(45,63,102,0.08)]">
+    <div className="bg-card border-border hover:border-point-border relative flex flex-col gap-3 rounded-2xl border p-[18px] transition-[box-shadow,border-color] hover:shadow-[0_8px_24px_rgba(31,58,138,0.08)]">
       {/* 카드 전체를 덮는 상세 링크 (stretched link) */}
       <Link href={`/jobs/${o.id}`} className="absolute inset-0 z-0 rounded-2xl">
         <span className="sr-only">{o.title} 상세 보기</span>

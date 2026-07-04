@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { JobCard } from "@/components/jobs/job-card";
+import { JobCardSkeletonGrid } from "@/components/jobs/job-card-skeleton";
 import {
   getOpportunities,
   getPersonalizedOpportunities,
@@ -186,11 +187,7 @@ export function JobsClient() {
       )}
 
       {/* ── States ── */}
-      {state === "loading" && (
-        <p className="text-muted-foreground mt-6 text-sm">
-          공고를 불러오는 중…
-        </p>
-      )}
+      {state === "loading" && <JobCardSkeletonGrid />}
       {state === "ok" && items.length === 0 && (
         <div className="text-muted-foreground py-[70px] text-center">
           <p className="text-foreground text-[15px] font-bold">

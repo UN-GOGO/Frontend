@@ -4,7 +4,7 @@ import { BookmarkButton } from "@/components/bookmarks/bookmark-button";
 import { type PersonalizedInsightItem } from "@/lib/api/iogo";
 
 /** 인사이트(추천 뉴스) 목록·저장됨 화면에서 공유하는 뉴스 카드.
- *  match_rate·reason은 개인화 응답에만 있어 선택적으로 렌더링한다. */
+ *  match_score·match_reasons는 개인화 응답에만 있어 선택적으로 렌더링한다. */
 export function InsightCard({
   article: a,
 }: {
@@ -12,8 +12,8 @@ export function InsightCard({
 }) {
   if (!a) return null;
   const matchPct =
-    a.match_rate != null
-      ? Math.round(a.match_rate <= 1 ? a.match_rate * 100 : a.match_rate)
+    a.match_score != null && a.match_score > 0
+      ? Math.round(a.match_score <= 1 ? a.match_score * 100 : a.match_score)
       : null;
   return (
     <div className="border-border bg-card hover:border-point-border rounded-[14px] border p-[18px] transition-colors">
@@ -56,9 +56,9 @@ export function InsightCard({
           {a.summary ?? a.content}
         </p>
       )}
-      {a.reason && (
+      {a.match_reasons && a.match_reasons.length > 0 && (
         <p className="text-point-hover mt-2 text-[12px] leading-relaxed">
-          💡 {a.reason}
+          💡 {a.match_reasons.join(" · ")}
         </p>
       )}
     </div>
