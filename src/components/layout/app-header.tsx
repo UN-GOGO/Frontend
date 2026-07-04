@@ -13,10 +13,10 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
   const initial = name.charAt(0).toUpperCase();
 
   return (
-    <header className="bg-primary flex h-15 shrink-0 items-center justify-between px-5 text-white">
+    <header className="border-border text-foreground flex h-15 shrink-0 items-center justify-between border-b bg-white px-5">
       {/* Logo + tagline */}
       <Link
-        href="/compass"
+        href="/"
         className="focus-visible:ring-point flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-2"
       >
         <BrandMark />
@@ -24,7 +24,7 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
           <span className="text-[17px] font-extrabold tracking-tight">
             I-OGO
           </span>
-          <span className="text-[10px] font-medium text-[#aeb8d4]">
+          <span className="text-muted-foreground text-[10px] font-medium">
             {t.tagline}
           </span>
         </span>
@@ -37,7 +37,7 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
             <Link
               href="/notifications"
               aria-label={t.notifAria}
-              className="focus-visible:ring-point relative flex size-8.5 items-center justify-center rounded-[9px] bg-white/10 transition-colors outline-none hover:bg-white/20 focus-visible:ring-2"
+              className="focus-visible:ring-point hover:bg-point-soft bg-secondary relative flex size-8.5 items-center justify-center rounded-[9px] transition-colors outline-none focus-visible:ring-2"
             >
               <svg
                 width="17"
@@ -53,7 +53,7 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
               {hasUnread && (
-                <span className="border-primary bg-point absolute top-1.5 right-2 size-2 rounded-full border-[1.5px]" />
+                <span className="bg-point absolute top-1.5 right-2 size-2 rounded-full border-[1.5px] border-white" />
               )}
             </Link>
 
@@ -61,12 +61,12 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
             <Link
               href="/mypage"
               aria-label={t.mypageAria}
-              className="focus-visible:ring-point flex items-center gap-2 rounded-md py-1 pr-2 pl-1 transition-colors outline-none hover:bg-white/10 focus-visible:ring-2"
+              className="focus-visible:ring-point hover:bg-secondary flex items-center gap-2 rounded-md py-1 pr-2 pl-1 transition-colors outline-none focus-visible:ring-2"
             >
               <span className="bg-point-soft text-point-hover flex size-8 items-center justify-center rounded-full text-[13px] font-extrabold">
                 {initial}
               </span>
-              <span className="hidden text-[13px] font-semibold whitespace-nowrap text-[#dfe4f1] sm:inline">
+              <span className="text-foreground hidden text-[13px] font-semibold whitespace-nowrap sm:inline">
                 {name}
               </span>
             </Link>
@@ -75,7 +75,7 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
           <div className="flex items-center gap-1 text-[13px] font-semibold">
             <Link
               href="/login"
-              className="focus-visible:ring-point rounded-md px-2.5 py-1.5 text-[#dfe4f1] transition-colors outline-none hover:bg-white/10 focus-visible:ring-2"
+              className="focus-visible:ring-point text-secondary-foreground hover:bg-secondary rounded-md px-2.5 py-1.5 transition-colors outline-none focus-visible:ring-2"
             >
               로그인
             </Link>
