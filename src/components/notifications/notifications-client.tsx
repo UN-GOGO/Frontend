@@ -1,47 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  Bell,
-  Briefcase,
-  CalendarDays,
-  Check,
-  Clock,
-  Mail,
-  Newspaper,
-  type LucideIcon,
-} from "lucide-react";
+import { Check, Mail } from "lucide-react";
 
 import {
   getNotificationPrefs,
   saveNotificationPrefs,
 } from "@/lib/notifications/preferences";
-import {
-  getNotifications,
-  markAllNotificationsRead,
-  markNotificationRead,
-  type NotificationItem,
-  type NotificationType,
-} from "@/lib/notifications/feed";
 import { cn } from "@/lib/utils";
-
-const TYPE_ICON: Record<NotificationType, LucideIcon> = {
-  deadline: Clock,
-  newjob: Briefcase,
-  news: Newspaper,
-  event: CalendarDays,
-};
-
-function formatTime(iso: string) {
-  try {
-    const d = new Date(iso);
-    const p = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-  } catch {
-    return "";
-  }
-}
 
 function Toggle({
   on,
@@ -81,16 +47,10 @@ export function NotificationsClient() {
   const [loading, setLoading] = useState(true);
   const [authed, setAuthed] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState<"ok" | "err" | null>(null);
+  const [savedMsg, setSavedMsg] = useState<"ok" | "err" | "empty" | null>(null);
 
-  const [notifs, setNotifs] = useState<NotificationItem[]>([]);
-  const [feedLoading, setFeedLoading] = useState(true);
-  const hasUnread = notifs.some((n) => !n.isRead);
-
-  const markAllRead = async () => {
-    setNotifs((list) => list.map((n) => ({ ...n, isRead: true })));
-    await markAllNotificationsRead();
-  };
+  // 알림이 켜져 있으면 수신 이메일은 필수. 비어 있으면 저장 불가.
+  const emailRequired = enabled && email.trim() === "";
 
   useEffect(() => {
     (async () => {
@@ -99,14 +59,15 @@ export function NotificationsClient() {
       setEnabled(prefs.enableNotifications);
       setEmail(prefs.email);
       setLoading(false);
-
-      const items = await getNotifications();
-      setNotifs(items);
-      setFeedLoading(false);
     })();
   }, []);
 
   const save = async () => {
+    // 수신 이메일이 비어 있으면 저장하지 않고 안내만 표시.
+    if (emailRequired) {
+      setSavedMsg("empty");
+      return;
+    }
     setSaving(true);
     setSavedMsg(null);
     const res = await saveNotificationPrefs({
@@ -121,24 +82,13 @@ export function NotificationsClient() {
   return (
     <div className="mx-auto w-full max-w-[1120px] px-6 py-8">
       {/* Header */}
-      <div className="mb-5 flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-primary text-2xl font-extrabold tracking-tight">
-            알림
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            매주 월요일, 새 뉴스·공고를 이메일로 받아보세요.
-          </p>
-        </div>
-        {hasUnread && (
-          <button
-            type="button"
-            onClick={markAllRead}
-            className="border-border text-point-hover hover:border-point-border shrink-0 rounded-[9px] border bg-white px-3 py-2 text-xs font-bold whitespace-nowrap transition-colors"
-          >
-            모두 읽음
-          </button>
-        )}
+      <div className="mb-5">
+        <h1 className="text-primary text-2xl font-extrabold tracking-tight">
+          알림
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          매주 월요일, 새 뉴스를 이메일로 받아보세요.
+        </p>
       </div>
 
       {/* Weekly email digest settings */}
@@ -161,10 +111,10 @@ export function NotificationsClient() {
             </span>
             <div className="min-w-0">
               <div className="text-foreground text-sm font-bold">
-                주간 이메일 다이제스트
+                주간 이메일
               </div>
               <div className="text-muted-foreground mt-0.5 text-xs">
-                관심 분야의 새 뉴스·공고 TOP5를 매주 보내드려요.
+                관심 분야의 새 뉴스 TOP3를 매주 월요일에 보내드려요.
               </div>
             </div>
           </div>
@@ -177,20 +127,26 @@ export function NotificationsClient() {
 
         {/* Email */}
         <div className="border-border/70 border-t py-4">
-          <label className="text-muted-foreground text-xs font-semibold">
+          <label className="text-muted-foreground text-sm font-semibold">
             수신 이메일
           </label>
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (savedMsg === "empty") setSavedMsg(null);
+            }}
             disabled={loading || !authed || !enabled}
             placeholder="example@email.com"
-            className="border-border text-foreground placeholder:text-muted-foreground focus:border-point mt-1.5 w-full max-w-[360px] rounded-[11px] border-[1.5px] px-3.5 py-2.5 text-sm outline-none disabled:opacity-50"
+            aria-invalid={savedMsg === "empty"}
+            className="border-border text-foreground placeholder:text-muted-foreground focus:border-point aria-invalid:border-destructive mt-1.5 ml-3 w-full max-w-[360px] rounded-[11px] border-[1.5px] px-3.5 py-2.5 text-sm outline-none disabled:opacity-50"
           />
-          <p className="text-muted-foreground mt-1.5 text-[11px]">
-            비워두면 가입한 계정 이메일로 발송됩니다.
-          </p>
+          {savedMsg === "empty" && (
+            <p className="text-destructive mt-1.5 ml-3 text-xs">
+              수신 이메일을 입력해 주세요.
+            </p>
+          )}
         </div>
 
         {/* Save */}
@@ -198,7 +154,7 @@ export function NotificationsClient() {
           <button
             type="button"
             onClick={save}
-            disabled={loading || !authed || saving}
+            disabled={loading || !authed || saving || emailRequired}
             className="bg-primary hover:bg-point-hover rounded-[11px] px-5 py-2.5 text-[13px] font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "저장 중…" : "저장"}
@@ -216,93 +172,6 @@ export function NotificationsClient() {
           )}
         </div>
       </div>
-
-      {/* Notification feed */}
-      {feedLoading ? (
-        <div className="text-muted-foreground px-5 py-14 text-center text-sm">
-          알림을 불러오는 중…
-        </div>
-      ) : notifs.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center px-5 py-14 text-center">
-          <Bell className="mb-2 size-7 opacity-40" />
-          <div className="text-sm font-bold">새로운 알림이 없습니다.</div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2.5">
-          {notifs.map((n) => (
-            <NotificationRow
-              key={n.id}
-              item={n}
-              onRead={(id) => {
-                setNotifs((list) =>
-                  list.map((x) => (x.id === id ? { ...x, isRead: true } : x)),
-                );
-                void markNotificationRead(id);
-              }}
-            />
-          ))}
-        </div>
-      )}
     </div>
-  );
-}
-
-function NotificationRow({
-  item,
-  onRead,
-}: {
-  item: NotificationItem;
-  onRead: (id: string) => void;
-}) {
-  const Icon = TYPE_ICON[item.type] ?? Bell;
-  const inner = (
-    <>
-      <span className="bg-point-soft text-point-hover flex size-10 shrink-0 items-center justify-center rounded-xl">
-        <Icon className="size-[18px]" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="text-foreground text-sm leading-snug font-bold">
-          {item.title}
-        </div>
-        {item.body && (
-          <div className="text-muted-foreground mt-0.5 text-xs leading-snug">
-            {item.body}
-          </div>
-        )}
-        <div className="text-muted-foreground mt-1 font-mono text-[12px]">
-          {formatTime(item.createdAt)}
-        </div>
-      </div>
-      {!item.isRead && (
-        <span className="bg-point size-2 shrink-0 rounded-full" />
-      )}
-    </>
-  );
-
-  const className = cn(
-    "border-border bg-card hover:border-point-border flex w-full items-center gap-3 rounded-[14px] border p-4 text-left transition-colors",
-    !item.isRead && "bg-point-soft/30",
-  );
-
-  if (item.linkUrl) {
-    return (
-      <Link
-        href={item.linkUrl}
-        onClick={() => !item.isRead && onRead(item.id)}
-        className={className}
-      >
-        {inner}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => !item.isRead && onRead(item.id)}
-      className={className}
-    >
-      {inner}
-    </button>
   );
 }
