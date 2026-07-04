@@ -144,9 +144,10 @@ export function getUserStats(
 // ===== 개인화 공고 / 인사이트 (personalized) =====
 // 백엔드 신규 엔드포인트. has_compass=false면 나침반 검사 전 상태.
 
-/** 매칭 점수가 포함된 개인화 공고 아이템. score는 0~1. */
+/** 매칭 점수·추천 이유가 포함된 개인화 공고 아이템. match_score는 0~1. */
 export type PersonalizedOpportunity = Opportunity & {
   match_score?: number | null;
+  match_reasons?: string[];
 };
 
 export type PersonalizedOpportunities = {
@@ -165,15 +166,19 @@ export function getPersonalizedOpportunities(
   );
 }
 
-/** 매칭률·추천 이유가 포함된 개인화 뉴스 아이템. */
+/** 매칭 점수·추천 이유가 포함된 개인화 뉴스 아이템. match_score는 0~1. */
 export type PersonalizedInsightItem = NewsArticle & {
-  match_rate?: number | null;
-  reason?: string | null;
+  match_score?: number | null;
+  match_reasons?: string[];
 };
 
 export type PersonalizedInsights = {
   has_compass: boolean;
   items: PersonalizedInsightItem[];
+  /** "개인화 인사이트" | "최신 인사이트" */
+  type?: string;
+  extracted_keywords?: string[];
+  extracted_orgs?: string[];
 };
 
 /** GET /insight/personalized/{user_id} */
