@@ -47,11 +47,13 @@ const LOADING_MSGS = [
 ];
 
 const PROFILE_LABELS: [keyof ProfileSummary, string][] = [
-  ["major", "전공"],
-  ["degree", "학력"],
-  ["exp", "경험"],
+  ["status", "현재 상태"],
+  ["major", "전공/관심"],
+  ["experience", "경력"],
   ["english", "영어"],
   ["second", "제2외국어"],
+  ["cert", "자격증"],
+  ["targetPath", "진출 경로"],
 ];
 
 export function Result({
@@ -87,7 +89,7 @@ export function Result({
           <div className="bg-primary relative flex items-center gap-5 overflow-hidden rounded-[20px] px-7 py-6 text-white">
             <span
               className="pointer-events-none absolute -top-12 -right-10 size-44 rounded-full blur-[12px]"
-              style={{ background: "rgba(109,91,208,0.25)" }}
+              style={{ background: "rgba(104,190,253,0.25)" }}
             />
             <svg
               width="84"
@@ -100,7 +102,7 @@ export function Result({
                 cy="50"
                 r="46"
                 fill="none"
-                stroke="#576CBC"
+                stroke="#68BEFD"
                 strokeWidth="2"
                 opacity="0.5"
               />
@@ -111,7 +113,7 @@ export function Result({
                   transition: "transform 1.1s cubic-bezier(.2,.8,.2,1)",
                 }}
               >
-                <polygon points="50,12 56,50 50,46 44,50" fill="#8b7ce0" />
+                <polygon points="50,12 56,50 50,46 44,50" fill="#68BEFD" />
                 <polygon points="50,88 56,50 50,54 44,50" fill="#F59E0B" />
               </g>
               <circle cx="50" cy="50" r="4" fill="#fff" />

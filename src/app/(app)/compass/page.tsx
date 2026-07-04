@@ -17,7 +17,7 @@ export default function CompassPage() {
               나침반
             </h1>
             <p className="text-muted-foreground mt-0.5 text-sm">
-              9개 질문으로 나에게 맞는 국제기구를 찾아드려요.
+              몇 가지 대화로 나에게 맞는 국제기구를 찾아드려요.
             </p>
           </div>
         </header>

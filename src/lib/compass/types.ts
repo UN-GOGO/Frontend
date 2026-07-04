@@ -1,14 +1,29 @@
 // 나침반(Compass) — 국제기구 추천 기능 타입
 // 백엔드 /compass/recommend 응답 계약과 1:1로 맞춘다.
 
-/** 인트로에서 받는 기본 프로필(모두 선택 입력) */
+/**
+ * 나침반 트랙(A/B). 첫 질문("준비해봤나요 / 관심만 있나요")으로 자동 분기된다.
+ * - interest = A(흥미·입문) : 가볍게 묻고 문구도 부드럽게
+ * - advanced = B(고급·정보취득) : 전공·경력·언어까지 정교하게
+ */
+export type CompassTrack = "interest" | "advanced";
+
+/**
+ * 나침반 프로필 — A/B 공통 스키마(B ⊇ A).
+ * A는 {track, nick, status, major, english}만 채우고,
+ * B는 거기에 {experience, second, cert, targetPath}를 추가로 채운다.
+ * 저장/표시가 단순하도록 항목 키는 하나로 통일한다.
+ */
 export type ProfileSummary = {
+  track: CompassTrack | "";
   nick: string;
-  major: string;
-  degree: string;
-  exp: string;
-  english: string;
-  second: string;
+  status: string; // 현재 상태 (공통)
+  major: string; // A: 요즘 관심 주제 · B: 학사 전공 (공통 키)
+  english: string; // 영어 업무 수행 수준 (공통, 객관식)
+  experience: string; // 관련 경력 (B 전용)
+  second: string; // 제2외국어 (B 전용)
+  cert: string; // 자격증 (B 전용)
+  targetPath: string; // 관심 진출 경로 (B 전용)
 };
 
 /** 퀴즈 문항 정의 */

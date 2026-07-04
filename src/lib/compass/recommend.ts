@@ -1,7 +1,7 @@
 import { apiPost } from "@/lib/api/client";
 
 import { ruleBased } from "./fallback";
-import type { Answer, RecommendResponse } from "./types";
+import type { Answer, CompassTrack, RecommendResponse } from "./types";
 
 export type RecommendResult = {
   data: RecommendResponse;
@@ -16,6 +16,7 @@ export type RecommendResult = {
 export async function getRecommendation(
   profileText: string,
   answers: Answer[],
+  track: CompassTrack,
   init?: { signal?: AbortSignal },
 ): Promise<RecommendResult> {
   try {
@@ -27,6 +28,6 @@ export async function getRecommendation(
     if (!data?.recommendations?.length) throw new Error("empty");
     return { data, isAI: true };
   } catch {
-    return { data: ruleBased(answers), isAI: false };
+    return { data: ruleBased(answers, track), isAI: false };
   }
 }
