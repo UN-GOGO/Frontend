@@ -1,5 +1,5 @@
-import { QUESTIONS } from "./questions";
-import type { Answer, RecommendResponse } from "./types";
+import { flowFor } from "./flows";
+import type { Answer, CompassTrack, RecommendResponse } from "./types";
 
 // ===== 규칙 기반 폴백 (백엔드 미동작 시) — 최소 카탈로그로 자체 채점 =====
 // 백엔드(un-gogo)가 켜지면 36개 실데이터 기반 AI 추천으로 대체된다.
@@ -54,16 +54,20 @@ const FALLBACK_ORGS = [
   },
 ];
 
-export function ruleBased(answers: Answer[]): RecommendResponse {
+export function ruleBased(
+  answers: Answer[],
+  track: CompassTrack,
+): RecommendResponse {
+  const quiz = flowFor(track).quiz;
   const tags: string[] = [];
   answers.forEach((a, qi) => {
-    const Q = QUESTIONS[qi];
-    if (a == null) return;
-    if (Q.type === "multi") {
+    const Q = quiz[qi];
+    if (!Q || a == null) return;
+    if (Q.kind === "multi") {
       (Array.isArray(a) ? a : []).forEach((i) =>
         (Q.opts[i].tags ?? []).forEach((t) => tags.push(t)),
       );
-    } else if (Q.type !== "text") {
+    } else if (Q.kind === "single") {
       (Q.opts[a as number].tags ?? []).forEach((t) => tags.push(t));
     }
   });

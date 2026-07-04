@@ -6,13 +6,16 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { Result } from "./result";
+import { EMPTY_PROFILE } from "@/lib/compass/flows";
 import {
+  getLatestNavigatorResult,
   getNavigatorResult,
   type NavigatorResultDetail,
 } from "@/lib/compass/history";
 import type { RecommendResponse } from "@/lib/compass/types";
 
-export function ResultDetail({ id }: { id: string }) {
+// id를 주면 해당 결과를, 안 주면 로그인 유저의 최신 결과를 연다.
+export function ResultDetail({ id }: { id?: string }) {
   const router = useRouter();
   const [result, setResult] = useState<NavigatorResultDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +23,9 @@ export function ResultDetail({ id }: { id: string }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const r = await getNavigatorResult(id);
+      const r = id
+        ? await getNavigatorResult(id)
+        : await getLatestNavigatorResult();
       if (cancelled) return;
       setResult(r);
       setLoading(false);
@@ -63,16 +68,7 @@ export function ResultDetail({ id }: { id: string }) {
           </div>
         ) : (
           <Result
-            summary={
-              result?.profileInput ?? {
-                nick: "",
-                major: "",
-                degree: "",
-                exp: "",
-                english: "",
-                second: "",
-              }
-            }
+            summary={result?.profileInput ?? EMPTY_PROFILE}
             data={data}
             isAI={result?.isAi ?? false}
             loading={loading}
