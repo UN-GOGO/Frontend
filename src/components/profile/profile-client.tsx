@@ -1,99 +1,199 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getProfile, updateProfile, type Profile } from "@/lib/api/iogo";
-import { getUserId } from "@/lib/api/user";
+import {
+  EMPTY_PROFILE,
+  ENGLISH_OPTIONS,
+  EXPERIENCE_OPTIONS,
+  PATH_OPTIONS,
+  STATUS_OPTIONS,
+} from "@/lib/compass/flows";
+import {
+  loadCompassProfile,
+  saveCompassProfile,
+} from "@/lib/compass/profile-store";
+import type { ProfileSummary } from "@/lib/compass/types";
+import { cn } from "@/lib/utils";
 
+// 마이페이지 프로필 = 나침반과 동일한 정본(ProfileSummary 9필드)을 편집한다.
+// 여기서 저장하면 나침반 재방문 시 "불러오기"로 그대로 이어서 진단할 수 있다(양방향).
 export function ProfileClient() {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string>("");
-  const [education, setEducation] = useState("");
-  const [major, setMajor] = useState("");
-  const [saved, setSaved] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<ProfileSummary>(EMPTY_PROFILE);
+  const [saved, setSaved] = useState(false);
+  const [needLogin, setNeedLogin] = useState(false);
 
   useEffect(() => {
-    const ctrl = new AbortController();
     (async () => {
-      const id = await getUserId();
-      setUserId(id);
-      try {
-        const p = await getProfile(id, { signal: ctrl.signal });
-        setEducation(p.education ?? "");
-        setMajor(p.major ?? "");
-        setSaved(p);
-        setState("ok");
-      } catch (e: unknown) {
-        if (ctrl.signal.aborted) return;
-        // 404(프로필 없음)도 "연결됨"으로 본다 — 백엔드는 응답했으므로.
-        const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes("404")) {
-          setState("ok");
-        } else {
-          setError(msg);
-          setState("error");
-        }
-      }
+      const p = await loadCompassProfile();
+      if (p) setProfile(p);
+      setState("ok");
     })();
-    return () => ctrl.abort();
   }, []);
 
+  const set = <K extends keyof ProfileSummary>(
+    key: K,
+    value: ProfileSummary[K],
+  ) => {
+    setProfile((prev) => ({ ...prev, [key]: value }));
+    setSaved(false);
+  };
+
   const save = async () => {
-    try {
-      const p = await updateProfile(userId, { education, major });
-      setSaved(p);
-      setState("ok");
+    setSaved(false);
+    const res = await saveCompassProfile(profile);
+    if (res.ok) {
+      setSaved(true);
+      setNeedLogin(false);
       setError(null);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
+      setState("ok");
+    } else if (res.error === "not_authenticated") {
+      setNeedLogin(true);
+    } else {
+      setError(res.error ?? "저장 실패");
       setState("error");
     }
   };
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-6 py-8">
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-1 flex items-center justify-between gap-3">
         <h1 className="text-foreground text-xl font-bold">내 프로필</h1>
         <ConnBadge state={state} error={error} />
       </div>
+      <p className="text-muted-foreground mb-5 text-xs">
+        여기서 저장한 내용은 나침반 진단에도 그대로 이어져요.
+      </p>
 
-      <div className="flex flex-col gap-3">
-        <label className="text-muted-foreground text-xs font-semibold">
-          학력 (education)
-          <Input
-            className="mt-1"
-            value={education}
-            onChange={(e) => setEducation(e.target.value)}
-            placeholder="예: 학사 재학"
-          />
-        </label>
-        <label className="text-muted-foreground text-xs font-semibold">
-          전공 (major)
-          <Input
-            className="mt-1"
-            value={major}
-            onChange={(e) => setMajor(e.target.value)}
-            placeholder="예: 국제학"
-          />
-        </label>
-        <Button onClick={save} className="mt-1 self-start">
-          저장 (PUT /profile)
-        </Button>
+      <div className="flex flex-col gap-4">
+        <SelectField
+          label="현재 상태"
+          value={profile.status}
+          onChange={(v) => set("status", v)}
+          options={STATUS_OPTIONS.map((o) => ({ value: o, label: o }))}
+        />
+        <TextField
+          label="전공 / 관심 주제"
+          value={profile.major}
+          onChange={(v) => set("major", v)}
+          placeholder="예: 국제학 · 기후"
+        />
+        <SelectField
+          label="영어 수준"
+          value={profile.english}
+          onChange={(v) => set("english", v)}
+          options={ENGLISH_OPTIONS.map((o) => ({ value: o, label: o }))}
+        />
+        <SelectField
+          label="관련 경력"
+          value={profile.experience}
+          onChange={(v) => set("experience", v)}
+          options={EXPERIENCE_OPTIONS.map((o) => ({ value: o, label: o }))}
+        />
+        <TextField
+          label="제2외국어"
+          value={profile.second}
+          onChange={(v) => set("second", v)}
+          placeholder="예: 프랑스어(중급)"
+        />
+        <TextField
+          label="자격증"
+          value={profile.cert}
+          onChange={(v) => set("cert", v)}
+          placeholder="예: 정보처리기사"
+        />
+        <SelectField
+          label="진출 경로"
+          value={profile.targetPath}
+          onChange={(v) => set("targetPath", v)}
+          options={PATH_OPTIONS.map((o) => ({ value: o, label: o }))}
+        />
+
+        <div className="mt-1 flex items-center gap-3">
+          <Button onClick={save} className="self-start">
+            저장
+          </Button>
+          {saved && (
+            <span className="text-point-hover text-xs font-semibold">
+              저장됐어요 · 나침반에도 반영돼요 ✅
+            </span>
+          )}
+          {needLogin && (
+            <span className="text-destructive text-xs font-semibold">
+              로그인해야 저장할 수 있어요.
+            </span>
+          )}
+        </div>
       </div>
-
-      <div className="text-muted-foreground mt-4 text-[11px]">
-        user_id: <code>{userId || "…"}</code>
-      </div>
-
-      {saved && (
-        <pre className="border-border bg-muted/40 mt-4 overflow-x-auto rounded-xl border p-3 text-xs">
-          {JSON.stringify(saved, null, 2)}
-        </pre>
-      )}
     </div>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="text-muted-foreground text-xs font-semibold">
+      {label}
+      <Input
+        className="mt-1"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder = "선택",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  return (
+    <label className="text-muted-foreground text-xs font-semibold">
+      {label}
+      <div className="relative mt-1">
+        {/* Input 컴포넌트와 동일한 테두리·radius·패딩으로 높이를 맞춘다 */}
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(
+            "border-border text-foreground focus:border-point aria-invalid:border-destructive w-full cursor-pointer appearance-none rounded-[11px] border-[1.5px] bg-transparent px-3.5 py-3 pr-10 text-sm outline-none",
+            !value && "text-muted-foreground",
+          )}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value} className="text-foreground">
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" />
+      </div>
+    </label>
   );
 }

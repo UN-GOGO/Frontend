@@ -81,7 +81,7 @@ export default function LoginPage() {
           <form
             onSubmit={handleSubmit(onSubmit)}
             noValidate
-            className="border-border bg-card flex flex-col gap-[11px] rounded-[18px] border p-6 shadow-[0_12px_32px_rgba(45,63,102,0.06)]"
+            className="border-border bg-card flex flex-col gap-[11px] rounded-[18px] border p-6 shadow-[0_12px_32px_rgba(31,58,138,0.06)]"
           >
             {/* LinkedIn */}
             <SocialButton
@@ -167,7 +167,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="mt-0.5 h-auto w-full gap-2 rounded-[11px] p-[13px] font-extrabold hover:bg-[#243152] disabled:cursor-not-allowed disabled:bg-[#AEB6C7] disabled:opacity-100"
+              className="mt-0.5 h-auto w-full gap-2 rounded-[11px] p-[13px] font-extrabold hover:bg-[#117DFF] disabled:cursor-not-allowed disabled:bg-[#AEB6C7] disabled:opacity-100"
             >
               {isSubmitting && (
                 <span className="size-[15px] animate-spin rounded-full border-2 border-white/40 border-t-white" />

@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, Briefcase, ChevronRight, Newspaper } from "lucide-react";
+import {
+  Bell,
+  Briefcase,
+  ChevronRight,
+  Compass,
+  Newspaper,
+} from "lucide-react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import {
@@ -107,6 +113,12 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         {(
           [
+            {
+              href: "/compass/results",
+              icon: Compass,
+              title: "나침반 결과",
+              desc: "최신 진단 결과를 확인해요.",
+            },
             {
               href: "/notifications",
               icon: Bell,
