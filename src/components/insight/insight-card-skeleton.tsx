@@ -33,21 +33,6 @@ export function InsightSkeleton({ count = 4 }: { count?: number }) {
           ))}
         </div>
       </section>
-
-      <section>
-        <Skeleton className="mb-3 h-4 w-24" />
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex flex-col gap-1.5">
-              <div className="flex justify-between">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-3 w-12" />
-              </div>
-              <Skeleton className="h-2 w-full rounded-full" />
-            </div>
-          ))}
-        </div>
-      </section>
     </>
   );
 }

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   getProfile,
   getUserStats,
@@ -19,6 +20,16 @@ import {
 } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 import { useBookmarks } from "@/lib/bookmarks";
+
+// 관심 기구 비율 그래프·범례 색상 — 기구 순서대로 순환
+const STAT_COLORS = [
+  "bg-primary",
+  "bg-blue-400",
+  "bg-emerald-400",
+  "bg-amber-400",
+  "bg-purple-400",
+  "bg-rose-400",
+];
 
 function StatCard({ value, label }: { value: string; label: string }) {
   return (
@@ -36,18 +47,39 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
+  // 통계 전용 로딩/에러 — 프로필 응답이 늦어도 "내 관심사 통계"는
+  // 자기 데이터가 도착하는 즉시 스켈레톤을 벗는다(전체 state에 묶지 않음).
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [statsRetryKey, setStatsRetryKey] = useState(0);
 
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
       try {
         const userId = await getUserId();
-        const [p, s] = await Promise.allSettled([
-          getProfile(userId, { signal: ctrl.signal }),
-          getUserStats(userId, { signal: ctrl.signal }),
-        ]);
-        if (p.status === "fulfilled") setProfile(p.value);
-        if (s.status === "fulfilled") setStats(s.value);
+
+        setStatsLoading(true);
+        setStatsError(null);
+        const statsPromise = getUserStats(userId, { signal: ctrl.signal })
+          .then((s) => setStats(s))
+          .catch((e: unknown) => {
+            if (ctrl.signal.aborted) return;
+            console.error("관심사 통계 조회 실패:", e);
+            setStatsError(e instanceof Error ? e.message : String(e));
+          })
+          .finally(() => {
+            if (!ctrl.signal.aborted) setStatsLoading(false);
+          });
+
+        const profilePromise = getProfile(userId, { signal: ctrl.signal })
+          .then((p) => setProfile(p))
+          .catch((e: unknown) => {
+            if (ctrl.signal.aborted) return;
+            console.error("프로필 조회 실패:", e);
+          });
+
+        await Promise.allSettled([profilePromise, statsPromise]);
         setState("ok");
       } catch (e: unknown) {
         if (ctrl.signal.aborted) return;
@@ -56,7 +88,7 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
       }
     })();
     return () => ctrl.abort();
-  }, []);
+  }, [statsRetryKey]);
 
   const displayName = name || "사용자";
   const initial = (name || email || "U").charAt(0).toUpperCase();
@@ -156,6 +188,124 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
             <ChevronRight className="size-4 shrink-0 text-[#cbd5e1]" />
           </Link>
         ))}
+      </div>
+
+      {/* 관심사 통계 */}
+      <div className="mt-8">
+        <h2 className="text-foreground mb-4 text-lg font-bold">
+          내 관심사 통계
+        </h2>
+
+        {!stats && statsLoading && (
+          <div className="border-border bg-card flex flex-col gap-6 rounded-[18px] border p-5 sm:p-6">
+            <div>
+              <Skeleton className="mb-3 h-5 w-28" />
+              <Skeleton className="h-3.5 w-full rounded-full" />
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2.5">
+                <Skeleton className="h-4 w-20 rounded-full" />
+                <Skeleton className="h-4 w-24 rounded-full" />
+                <Skeleton className="h-4 w-16 rounded-full" />
+              </div>
+            </div>
+            <hr className="border-border" />
+            <div>
+              <Skeleton className="mb-3 h-5 w-32" />
+              <div className="flex flex-wrap gap-2">
+                <Skeleton className="h-8 w-20 rounded-lg" />
+                <Skeleton className="h-8 w-24 rounded-lg" />
+                <Skeleton className="h-8 w-16 rounded-lg" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!stats && !statsLoading && statsError && (
+          <div className="border-border bg-card flex flex-col items-start gap-2 rounded-[18px] border p-5 text-sm sm:p-6">
+            <p className="text-muted-foreground">
+              통계를 불러오지 못했어요. {statsError}
+            </p>
+            <button
+              type="button"
+              onClick={() => setStatsRetryKey((k) => k + 1)}
+              className="text-point-hover font-semibold hover:underline"
+            >
+              다시 시도
+            </button>
+          </div>
+        )}
+
+        {stats && !stats.has_data && (
+          <p className="text-muted-foreground text-sm">{stats.message}</p>
+        )}
+
+        {stats && stats.has_data && (
+          <div className="border-border bg-card flex flex-col gap-6 rounded-[18px] border p-5 sm:p-6">
+            <div>
+              <p className="text-foreground mb-3 text-[15px] font-bold">
+                관심 기구 비율
+              </p>
+              {/* Single Combined Graph */}
+              <div className="bg-muted flex h-3.5 w-full overflow-hidden rounded-full">
+                {stats.organization_ratio.map((o, i) => {
+                  const color = STAT_COLORS[i % STAT_COLORS.length];
+                  return (
+                    <div
+                      key={o.name}
+                      className={`h-full ${color} transition-all duration-500`}
+                      style={{ width: `${o.percentage}%` }}
+                      title={`${o.name} ${o.percentage}%`}
+                    />
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2.5">
+                {stats.organization_ratio.map((o, i) => {
+                  const color = STAT_COLORS[i % STAT_COLORS.length];
+                  return (
+                    <div
+                      key={o.name}
+                      className="flex items-center gap-2 text-[13px]"
+                    >
+                      <span
+                        className={`size-3 shrink-0 rounded-full ${color}`}
+                      />
+                      <span className="text-foreground font-semibold">
+                        {o.name}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {o.percentage}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {stats.top_keywords.length > 0 && (
+              <>
+                <hr className="border-border" />
+                <div>
+                  <p className="text-foreground mb-3 text-[15px] font-bold">
+                    자주 찾은 키워드
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {stats.top_keywords.map((k) => (
+                      <span
+                        key={k.keyword}
+                        className="bg-muted text-foreground rounded-lg px-3 py-1.5 text-[13px] font-medium"
+                      >
+                        {k.keyword}{" "}
+                        <span className="text-muted-foreground ml-1">
+                          {k.count}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
