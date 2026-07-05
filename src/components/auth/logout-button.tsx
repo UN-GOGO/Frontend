@@ -31,7 +31,9 @@ export function LogoutButton({ className }: { className?: string }) {
       className={className}
     >
       <LogOut />
-      로그아웃
+      <span data-label className="whitespace-nowrap">
+        로그아웃
+      </span>
     </Button>
   );
 }
