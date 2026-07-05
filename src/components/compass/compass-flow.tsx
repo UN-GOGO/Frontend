@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Conversation } from "./conversation";
+import { Quiz } from "./quiz";
 import { Result } from "./result";
 import { buildProfile, EMPTY_PROFILE } from "@/lib/compass/flows";
 import { getRecommendation } from "@/lib/compass/recommend";
@@ -14,32 +15,52 @@ import type {
   RecommendResponse,
 } from "@/lib/compass/types";
 
-type Phase = "conversation" | "result";
+// 나침반 흐름: 정보입력(대화형) → 진단 퀴즈(스텝 카드형) → 결과
+type Phase = "conversation" | "quiz" | "result";
 
 export function CompassFlow() {
   const [phase, setPhase] = useState<Phase>("conversation");
+  // 정보입력(대화) 단계에서 확정한 값 — 퀴즈 이후 추천 요청에 함께 쓴다
+  const [profileInput, setProfileInput] =
+    useState<ProfileSummary>(EMPTY_PROFILE);
+  const [track, setTrack] = useState<CompassTrack | null>(null);
+  const [saveToMypage, setSaveToMypage] = useState(false);
+
   const [summary, setSummary] = useState<ProfileSummary>(EMPTY_PROFILE);
   const [data, setData] = useState<RecommendResponse | null>(null);
   const [isAI, setIsAI] = useState(false);
+  // AI 추천이 규칙기반으로 떨어진 이유가 응답 지연(타임아웃)인지 — 화면에서
+  // "오프라인 폴백"과 다르게 안내하기 위함(백엔드는 살아있을 가능성이 높음).
+  const [timedOut, setTimedOut] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const finish = async (
-    profileInput: ProfileSummary,
-    answers: Answer[],
-    track: CompassTrack,
-    saveToMypage: boolean,
+  // 정보입력(대화) 완료 → 퀴즈 화면으로 전환
+  const startQuiz = (
+    profile: ProfileSummary,
+    tk: CompassTrack,
+    save: boolean,
   ) => {
+    setProfileInput(profile);
+    setTrack(tk);
+    setSaveToMypage(save);
+    setPhase("quiz");
+  };
+
+  // 퀴즈 완료 → 추천 요청 후 결과 화면
+  const finish = async (answers: Answer[]) => {
+    if (!track) return;
     const profile = buildProfile(profileInput, answers, track);
     setSummary(profileInput);
     setLoading(true);
     setPhase("result");
-    const { data, isAI } = await getRecommendation(
-      profile.text,
-      answers,
-      track,
-    );
+    const {
+      data,
+      isAI,
+      timedOut: didTimeOut,
+    } = await getRecommendation(profile.text, answers, track);
     setData(data);
     setIsAI(isAI);
+    setTimedOut(!!didTimeOut);
     setLoading(false);
 
     // 저장은 사용자가 동의(마이페이지 저장)했을 때만. 게스트/미동의는 저장 안 함.
@@ -61,21 +82,29 @@ export function CompassFlow() {
   const reset = () => {
     setData(null);
     setIsAI(false);
+    setTimedOut(false);
     setLoading(false);
     setSummary(EMPTY_PROFILE);
+    setProfileInput(EMPTY_PROFILE);
+    setTrack(null);
+    setSaveToMypage(false);
     setPhase("conversation");
   };
 
   return (
     <div className="w-full">
       {phase === "conversation" && (
-        <Conversation onFinish={finish} onExit={reset} />
+        <Conversation onFinish={startQuiz} onExit={reset} />
+      )}
+      {phase === "quiz" && track && (
+        <Quiz track={track} onFinish={finish} onExit={reset} />
       )}
       {phase === "result" && (
         <Result
           summary={summary}
           data={data}
           isAI={isAI}
+          timedOut={timedOut}
           loading={loading}
           onRetry={reset}
         />
