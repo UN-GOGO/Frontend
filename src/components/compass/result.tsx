@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Camera } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { saveNodeAsImage } from "@/lib/compass/capture";
 import { sendCompassFeedback } from "@/lib/compass/feedback";
 import type {
   ProfileSummary,
@@ -60,12 +62,15 @@ export function Result({
   summary,
   data,
   isAI,
+  timedOut,
   loading,
   onRetry,
 }: {
   summary: ProfileSummary;
   data: RecommendResponse | null;
   isAI: boolean;
+  /** isAI=false인 이유가 응답 지연(타임아웃)인지 — 오프라인 폴백과 다르게 안내 */
+  timedOut?: boolean;
   loading: boolean;
   onRetry: () => void;
 }) {
@@ -79,155 +84,197 @@ export function Result({
       (data?.needle_label ??
         (recs[0] ? `${recs[0].org} 방향을 가리켜요` : "결과"));
 
+  // 결과 이미지 저장(캡쳐) — captureRef 영역만 PNG로 내보낸다(액션·피드백 제외)
+  const captureRef = useRef<HTMLDivElement>(null);
+  const [capturing, setCapturing] = useState(false);
+
+  const handleCapture = async () => {
+    if (!captureRef.current || capturing) return;
+    setCapturing(true);
+    try {
+      await saveNodeAsImage(
+        captureRef.current,
+        `나침반_결과${summary.nick ? `_${summary.nick}` : ""}.png`,
+        "#f4f7fb",
+      );
+    } catch (e) {
+      console.error("결과 이미지 저장 실패:", e);
+      alert("이미지 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setCapturing(false);
+    }
+  };
+
   return (
     <div className="animate-[pol-up_0.35s_ease] space-y-5">
       {loading ? (
         <CompassLoading />
       ) : (
         <>
-          {/* 히어로 + 나침반 바늘 */}
-          <div className="bg-primary relative flex items-center gap-5 overflow-hidden rounded-[20px] px-7 py-6 text-white">
-            <span
-              className="pointer-events-none absolute -top-12 -right-10 size-44 rounded-full blur-[12px]"
-              style={{ background: "rgba(104,190,253,0.25)" }}
-            />
-            <svg
-              width="84"
-              height="84"
-              viewBox="0 0 100 100"
-              className="relative shrink-0"
-            >
-              <circle
-                cx="50"
-                cy="50"
-                r="46"
-                fill="none"
-                stroke="#68BEFD"
-                strokeWidth="2"
-                opacity="0.5"
+          <div ref={captureRef} className="bg-background space-y-5">
+            {/* 히어로 + 나침반 바늘 */}
+            <div className="bg-primary relative flex items-center gap-5 overflow-hidden rounded-[20px] px-7 py-6 text-white">
+              <span
+                className="pointer-events-none absolute -top-12 -right-10 size-44 rounded-full blur-[12px]"
+                style={{ background: "rgba(104,190,253,0.25)" }}
               />
-              <g
-                style={{
-                  transform: `rotate(${angle}deg)`,
-                  transformOrigin: "50% 50%",
-                  transition: "transform 1.1s cubic-bezier(.2,.8,.2,1)",
-                }}
+              <svg
+                width="84"
+                height="84"
+                viewBox="0 0 100 100"
+                className="relative shrink-0"
               >
-                <polygon points="50,12 56,50 50,46 44,50" fill="#68BEFD" />
-                <polygon points="50,88 56,50 50,54 44,50" fill="#F59E0B" />
-              </g>
-              <circle cx="50" cy="50" r="4" fill="#fff" />
-            </svg>
-            <div className="relative min-w-0">
-              <p className="mb-1 text-xs font-semibold text-white/60">
-                진단 완료
-              </p>
-              <p className="text-xl leading-snug font-extrabold tracking-tight text-balance">
-                {topline}
-              </p>
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="46"
+                  fill="none"
+                  stroke="#68BEFD"
+                  strokeWidth="2"
+                  opacity="0.5"
+                />
+                <g
+                  style={{
+                    transform: `rotate(${angle}deg)`,
+                    transformOrigin: "50% 50%",
+                    transition: "transform 1.1s cubic-bezier(.2,.8,.2,1)",
+                  }}
+                >
+                  <polygon points="50,12 56,50 50,46 44,50" fill="#68BEFD" />
+                  <polygon points="50,88 56,50 50,54 44,50" fill="#F59E0B" />
+                </g>
+                <circle cx="50" cy="50" r="4" fill="#fff" />
+              </svg>
+              <div className="relative min-w-0">
+                <p className="mb-1 text-xs font-semibold text-white/60">
+                  진단 완료
+                </p>
+                <p className="text-xl leading-snug font-extrabold tracking-tight text-balance">
+                  {topline}
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* 입력 프로필 칩 */}
-          {PROFILE_LABELS.some(([k]) => summary[k]) && (
-            <div className="border-border bg-card rounded-[16px] border p-4">
-              <p className="text-muted-foreground mb-2 text-[11px] font-bold">
-                입력하신 프로필
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {PROFILE_LABELS.filter(([k]) => summary[k]).map(
-                  ([k, label]) => (
-                    <span
-                      key={k}
-                      className="border-border text-muted-foreground rounded-full border bg-white px-2.5 py-1 text-[11px]"
+            {/* 입력 프로필 칩 */}
+            {PROFILE_LABELS.some(([k]) => summary[k]) && (
+              <div className="border-border bg-card rounded-[16px] border p-4">
+                <p className="text-muted-foreground mb-2 text-[11px] font-bold">
+                  입력하신 프로필
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {PROFILE_LABELS.filter(([k]) => summary[k]).map(
+                    ([k, label]) => (
+                      <span
+                        key={k}
+                        className="border-border text-muted-foreground rounded-full border bg-white px-2.5 py-1 text-[11px]"
+                      >
+                        <span className="text-foreground/50">{label}</span>{" "}
+                        {summary[k]}
+                      </span>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-foreground mb-3 flex items-center gap-2 text-sm font-extrabold">
+                <span className="bg-point size-2 rounded-full" />
+                당신에게 맞는 국제기구 Top 3
+              </h3>
+              {recs.length === 0 ? (
+                <div className="border-border text-muted-foreground rounded-[16px] border border-dashed p-6 text-center text-sm">
+                  매칭 결과가 적어요. 다시 진단하거나 관심 분야를 더
+                  선택해보세요.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  {recs.map((r, i) => (
+                    <OrgCard key={i} rec={r} rank={i + 1} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 더 둘러볼 기구 */}
+            {data?.explore && data.explore.length > 0 && (
+              <div>
+                <h3 className="text-foreground mb-3 flex items-center gap-2 text-sm font-extrabold">
+                  <span className="bg-point/40 size-2 rounded-full" />이
+                  분야라면 함께 둘러보세요
+                </h3>
+                <div className="flex flex-col gap-2.5">
+                  {data.explore.map((g, i) => (
+                    <div
+                      key={i}
+                      className="border-border bg-card rounded-[14px] border p-4"
                     >
-                      <span className="text-foreground/50">{label}</span>{" "}
-                      {summary[k]}
-                    </span>
-                  ),
-                )}
+                      <p className="text-foreground text-[13px] font-bold">
+                        {g.topic}
+                      </p>
+                      {g.orgs.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {g.orgs.map((o, j) => (
+                            <span
+                              key={j}
+                              className="bg-point-soft text-point-hover rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                            >
+                              {o}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {g.note && (
+                        <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+                          {g.note}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div>
-            <h3 className="text-foreground mb-3 flex items-center gap-2 text-sm font-extrabold">
-              <span className="bg-point size-2 rounded-full" />
-              당신에게 맞는 국제기구 Top 3
-            </h3>
-            {recs.length === 0 ? (
-              <div className="border-border text-muted-foreground rounded-[16px] border border-dashed p-6 text-center text-sm">
-                매칭 결과가 적어요. 다시 진단하거나 관심 분야를 더 선택해보세요.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                {recs.map((r, i) => (
-                  <OrgCard key={i} rec={r} rank={i + 1} />
-                ))}
+            {/* AI 조언 */}
+            {data?.advice && (
+              <div className="border-point-border bg-point-soft rounded-[16px] border p-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-point">✦</span>
+                  <span className="text-foreground text-xs font-extrabold">
+                    AI 맞춤 조언
+                  </span>
+                  <span className="border-border text-muted-foreground ml-auto rounded-full border bg-white px-2 py-0.5 text-[10px] font-semibold">
+                    {isAI
+                      ? `AI 분석 (${data.engine ?? "AI"})`
+                      : timedOut
+                        ? "AI 응답 지연 — 규칙기반으로 표시"
+                        : "규칙기반 (오프라인 폴백)"}
+                  </span>
+                </div>
+                {!isAI && timedOut && (
+                  <p className="text-muted-foreground mb-2 text-xs">
+                    AI 분석이 평소보다 오래 걸려 규칙 기반 추천을 먼저
+                    보여드려요. 잠시 후 “다시 진단”으로 다시 시도해보세요.
+                  </p>
+                )}
+                <p className="text-foreground text-sm leading-relaxed">
+                  {data.advice}
+                </p>
               </div>
             )}
           </div>
-
-          {/* 더 둘러볼 기구 */}
-          {data?.explore && data.explore.length > 0 && (
-            <div>
-              <h3 className="text-foreground mb-3 flex items-center gap-2 text-sm font-extrabold">
-                <span className="bg-point/40 size-2 rounded-full" />이 분야라면
-                함께 둘러보세요
-              </h3>
-              <div className="flex flex-col gap-2.5">
-                {data.explore.map((g, i) => (
-                  <div
-                    key={i}
-                    className="border-border bg-card rounded-[14px] border p-4"
-                  >
-                    <p className="text-foreground text-[13px] font-bold">
-                      {g.topic}
-                    </p>
-                    {g.orgs.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {g.orgs.map((o, j) => (
-                          <span
-                            key={j}
-                            className="bg-point-soft text-point-hover rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                          >
-                            {o}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {g.note && (
-                      <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
-                        {g.note}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* AI 조언 */}
-          {data?.advice && (
-            <div className="border-point-border bg-point-soft rounded-[16px] border p-5">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-point">✦</span>
-                <span className="text-foreground text-xs font-extrabold">
-                  AI 맞춤 조언
-                </span>
-                <span className="border-border text-muted-foreground ml-auto rounded-full border bg-white px-2 py-0.5 text-[10px] font-semibold">
-                  {isAI
-                    ? `AI 분석 (${data.engine ?? "AI"})`
-                    : "규칙기반 (오프라인 폴백)"}
-                </span>
-              </div>
-              <p className="text-foreground text-sm leading-relaxed">
-                {data.advice}
-              </p>
-            </div>
-          )}
+          {/* ↑ 여기까지가 캡쳐 대상(captureRef). 아래 액션·피드백은 이미지에 포함 안 됨 */}
 
           <div className="flex flex-col gap-2.5 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleCapture}
+              disabled={capturing}
+              className="border-border text-foreground hover:border-point-border flex flex-1 items-center justify-center gap-1.5 rounded-xl border bg-white py-3 text-sm font-bold transition-colors disabled:opacity-60"
+            >
+              <Camera className="size-4" />
+              {capturing ? "저장 중…" : "이미지로 저장"}
+            </button>
             <button
               type="button"
               onClick={onRetry}
@@ -235,10 +282,11 @@ export function Result({
             >
               다시 진단
             </button>
-            <Button className="bg-primary hover:bg-point-hover h-auto flex-1 rounded-xl py-3 text-sm font-bold">
-              이 기구 준비 로드맵 짜기 →
-            </Button>
           </div>
+
+          <Button className="bg-primary hover:bg-point-hover h-auto w-full rounded-xl py-3 text-sm font-bold">
+            이 기구 준비 로드맵 짜기 →
+          </Button>
 
           <Feedback />
         </>

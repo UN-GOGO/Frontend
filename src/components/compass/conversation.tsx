@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronUp, Pencil, X } from "lucide-react";
+import { ChevronUp, Pencil, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -9,12 +9,10 @@ import {
   BRANCH,
   EMPTY_PROFILE,
   flowFor,
-  type ChipOption,
   type ProfileStep,
-  type QuizStep,
 } from "@/lib/compass/flows";
 import { loadCompassProfile } from "@/lib/compass/profile-store";
-import type { Answer, CompassTrack, ProfileSummary } from "@/lib/compass/types";
+import type { CompassTrack, ProfileSummary } from "@/lib/compass/types";
 import { cn } from "@/lib/utils";
 
 // 프로필 입력을 마친 뒤 한 번 묻는 "마이페이지 저장" 단계
@@ -29,31 +27,30 @@ const SAVE_OPTS: { t: string; value: boolean }[] = [
 const LOAD_ASK =
   "저장된 프로필 정보가 있어요. 그 내용을 불러와서 채워둘까요? 불러온 뒤에도 각 항목은 수정할 수 있어요.";
 
-// 완료된 한 턴(질문 하나에 대한 답). 순서: branch → profile[…] → save → quiz[…]
+// 완료된 한 턴(질문 하나에 대한 답). 순서: branch → profile[…] → save
+// (진단 퀴즈는 대화가 끝난 뒤 별도 스텝 화면(quiz.tsx)에서 진행한다)
 type Turn =
   | { phase: "branch"; track: CompassTrack; display: string }
   | { phase: "profile"; idx: number; value: string; display: string }
-  | { phase: "save"; value: boolean; display: string }
-  | { phase: "quiz"; idx: number; value: Answer; display: string };
+  | { phase: "save"; value: boolean; display: string };
 
 // 지금 물어볼(대기 중) 스텝
 type Pending =
   | { kind: "branch" }
   | { kind: "profile"; idx: number; step: ProfileStep }
   | { kind: "save" }
-  | { kind: "quiz"; idx: number; step: QuizStep }
   | null;
 
 // 화면 전환 없이 같은 화면에 대화가 누적되는 단계 진행 UI(말풍선).
-// 실제 채팅이 아니라 정해진 질문을 순서대로 진행한다.
+// 실제 채팅이 아니라 정해진 질문(정보입력)을 순서대로 진행한다.
 // 이미 답한 말풍선은 "수정"으로 되돌아가 다시 고칠 수 있다.
+// 정보입력(branch→profile→save)이 끝나면 onFinish로 넘겨 퀴즈 화면으로 전환한다.
 export function Conversation({
   onFinish,
   onExit,
 }: {
   onFinish: (
     profile: ProfileSummary,
-    answers: Answer[],
     track: CompassTrack,
     saveToMypage: boolean,
   ) => void;
@@ -81,7 +78,7 @@ export function Conversation({
   const track = turns[0]?.phase === "branch" ? turns[0].track : null;
   const flow = track ? flowFor(track) : null;
 
-  // 대기 중인 다음 스텝 계산 (branch → profile[…] → save → quiz[…])
+  // 대기 중인 다음 스텝 계산 (branch → profile[…] → save)
   const pending = useMemo<Pending>(() => {
     if (turns.length === 0) return { kind: "branch" };
     if (!flow) return null;
@@ -90,17 +87,12 @@ export function Conversation({
     if (after < p)
       return { kind: "profile", idx: after, step: flow.profile[after] };
     if (after === p) return { kind: "save" };
-    const qi = after - p - 1;
-    if (qi < flow.quiz.length)
-      return { kind: "quiz", idx: qi, step: flow.quiz[qi] };
     return null;
   }, [turns.length, flow]);
 
-  const totalSteps = flow ? flow.profile.length + flow.quiz.length : 0;
-  // 진행률은 실제 질문(프로필+퀴즈)만 카운트 — branch·save 단계는 제외
-  const doneSteps = turns.filter(
-    (t) => t.phase === "profile" || t.phase === "quiz",
-  ).length;
+  const totalSteps = flow ? flow.profile.length : 0;
+  // 진행률은 실제 정보입력 질문(프로필)만 카운트 — branch·save 단계는 제외
+  const doneSteps = turns.filter((t) => t.phase === "profile").length;
 
   const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -120,26 +112,24 @@ export function Conversation({
   const scrollToTop = () =>
     scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
 
-  // turns → 최종 프로필/답변 배열 + 저장 동의 여부
+  // turns → 최종 프로필 + 저장 동의 여부
   const collect = (all: Turn[], tk: CompassTrack) => {
     const f = flowFor(tk);
     const profile: ProfileSummary = { ...EMPTY_PROFILE, track: tk };
-    const answers: Answer[] = Array(f.quiz.length).fill(null);
     let saveToMypage = false;
     all.forEach((t) => {
       if (t.phase === "profile") profile[f.profile[t.idx].key] = t.value;
-      else if (t.phase === "quiz") answers[t.idx] = t.value;
       else if (t.phase === "save") saveToMypage = t.value;
     });
-    return { profile, answers, saveToMypage };
+    return { profile, saveToMypage };
   };
 
   const maybeFinish = (all: Turn[], tk: CompassTrack) => {
     const f = flowFor(tk);
-    // branch(1) + profile + save(1) + quiz
-    if (all.length === 1 + f.profile.length + 1 + f.quiz.length) {
-      const { profile, answers, saveToMypage } = collect(all, tk);
-      onFinish(profile, answers, tk, saveToMypage);
+    // branch(1) + profile + save(1) → 정보입력 완료 시 퀴즈로 전환
+    if (all.length === 1 + f.profile.length + 1) {
+      const { profile, saveToMypage } = collect(all, tk);
+      onFinish(profile, tk, saveToMypage);
     }
   };
 
@@ -218,35 +208,12 @@ export function Conversation({
     if (track) maybeFinish(next, track);
   };
 
-  const answerQuiz = (value: Answer, display: string) => {
-    if (!flow) return;
-    if (editing != null) {
-      setTurns((prev) => {
-        const next = prev.slice();
-        const t = next[editing];
-        if (t.phase === "quiz") next[editing] = { ...t, value, display };
-        return next;
-      });
-      setEditing(null);
-      return;
-    }
-    if (pending?.kind !== "quiz") return;
-    const next: Turn[] = [
-      ...turns,
-      { phase: "quiz", idx: pending.idx, value, display },
-    ];
-    setTurns(next);
-    if (track) maybeFinish(next, track);
-  };
-
   // 턴의 질문 텍스트
   const askOf = (t: Turn): string => {
     if (t.phase === "branch") return BRANCH.ask;
     if (t.phase === "save") return SAVE_ASK;
     if (!flow) return "";
-    return t.phase === "profile"
-      ? flow.profile[t.idx].ask
-      : flow.quiz[t.idx].ask;
+    return flow.profile[t.idx].ask;
   };
 
   // 트랙 선택 직후, 저장 프로필이 있으면 "불러올까요?"를 먼저 묻는다.
@@ -358,14 +325,6 @@ export function Conversation({
                             onAnswer={answerSave}
                             onCancel={() => setEditing(null)}
                           />
-                        ) : t.phase === "quiz" && flow ? (
-                          <QuizInput
-                            step={flow.quiz[t.idx]}
-                            initial={t.value}
-                            editing
-                            onAnswer={answerQuiz}
-                            onCancel={() => setEditing(null)}
-                          />
                         ) : null
                       ) : (
                         <UserBubble
@@ -415,19 +374,12 @@ export function Conversation({
                 />
               )}
               {pending.kind === "save" && <SaveInput onAnswer={answerSave} />}
-              {pending.kind === "quiz" && (
-                <QuizInput
-                  key={`q${pending.idx}`}
-                  step={pending.step}
-                  onAnswer={answerQuiz}
-                />
-              )}
             </div>
           )}
 
           {editing == null && !pending && (
             <p className="text-muted-foreground border-border border-t py-4 text-center text-sm">
-              결과를 준비하고 있어요…
+              다음 단계(진단 퀴즈)로 넘어가고 있어요…
             </p>
           )}
         </div>
@@ -509,20 +461,6 @@ const optBase =
   "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition";
 const optOn = "border-point bg-point-soft text-foreground";
 const optOff = "border-border hover:border-point-border text-foreground";
-
-function Indicator({ on, square }: { on: boolean; square?: boolean }) {
-  return (
-    <span
-      className={cn(
-        "flex size-5 shrink-0 items-center justify-center border transition",
-        square ? "rounded-md" : "rounded-full",
-        on ? "border-point bg-point text-white" : "border-border bg-white",
-      )}
-    >
-      {on && <Check className="size-3.5" strokeWidth={3} />}
-    </span>
-  );
-}
 
 function CancelEdit({ onCancel }: { onCancel: () => void }) {
   return (
@@ -675,143 +613,6 @@ function ProfileInput({
         </Button>
       </div>
       <div className="flex items-center gap-3">
-        {step.optional && (
-          <button
-            type="button"
-            onClick={() => onAnswer("", "건너뛰기")}
-            className="text-muted-foreground hover:text-foreground text-xs font-semibold"
-          >
-            건너뛰기
-          </button>
-        )}
-        {editing && onCancel && <CancelEdit onCancel={onCancel} />}
-      </div>
-    </div>
-  );
-}
-
-function QuizInput({
-  step,
-  initial,
-  editing,
-  onAnswer,
-  onCancel,
-}: {
-  step: QuizStep;
-  initial?: Answer;
-  editing?: boolean;
-  onAnswer: (value: Answer, display: string) => void;
-  onCancel?: () => void;
-}) {
-  const [multi, setMulti] = useState<number[]>(
-    Array.isArray(initial) ? initial : [],
-  );
-  const [text, setText] = useState(typeof initial === "string" ? initial : "");
-
-  if (step.kind === "single") {
-    const cur = typeof initial === "number" ? initial : null;
-    return (
-      <div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          {step.opts.map((o, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onAnswer(i, o.t)}
-              className={cn(optBase, cur === i ? optOn : optOff)}
-            >
-              <Indicator on={cur === i} />
-              {o.t}
-            </button>
-          ))}
-        </div>
-        {editing && onCancel && (
-          <div className="mt-2">
-            <CancelEdit onCancel={onCancel} />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (step.kind === "multi") {
-    const max = step.max;
-    const opts = step.opts as ChipOption[];
-    const toggle = (i: number) => {
-      let arr = multi.slice();
-      if (arr.includes(i)) arr = arr.filter((x) => x !== i);
-      else {
-        if (arr.length >= max) arr.shift();
-        arr.push(i);
-      }
-      setMulti(arr);
-    };
-    const submit = () => {
-      if (!multi.length) return;
-      onAnswer(multi, multi.map((i) => opts[i].t).join(", "));
-    };
-    return (
-      <div className="space-y-3">
-        <p className="text-muted-foreground text-xs">최대 {max}개 선택</p>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          {opts.map((o, i) => {
-            const on = multi.includes(i);
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => toggle(i)}
-                className={cn(optBase, on ? optOn : optOff)}
-              >
-                <Indicator on={on} square />
-                {o.t}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={submit}
-            disabled={multi.length === 0}
-            className="bg-point hover:bg-point-hover h-auto flex-1 rounded-xl py-3 font-semibold"
-          >
-            {editing ? "수정 완료" : "다음"}
-            <span className="ml-1.5 tabular-nums opacity-80">
-              {multi.length}/{max}
-            </span>{" "}
-            →
-          </Button>
-          {editing && onCancel && <CancelEdit onCancel={onCancel} />}
-        </div>
-      </div>
-    );
-  }
-
-  // text
-  const submit = () => {
-    const v = text.trim();
-    if (!v) {
-      if (step.optional) onAnswer("", "건너뛰기");
-      return;
-    }
-    onAnswer(v, v);
-  };
-  return (
-    <div className="space-y-2.5">
-      <textarea
-        rows={3}
-        className="border-border text-foreground placeholder:text-muted-foreground focus-visible:border-point focus-visible:ring-point/30 w-full rounded-xl border px-4 py-3 text-sm transition outline-none focus-visible:ring-3"
-        placeholder={step.placeholder}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
-      <div className="flex items-center gap-3">
-        <Button
-          onClick={submit}
-          className="bg-point hover:bg-point-hover h-auto flex-1 rounded-xl py-3 font-semibold"
-        >
-          {editing ? "수정 완료 →" : "결과 보기 →"}
-        </Button>
         {step.optional && (
           <button
             type="button"
