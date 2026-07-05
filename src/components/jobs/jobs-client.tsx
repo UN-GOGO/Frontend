@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
@@ -15,7 +15,7 @@ import {
 import { getUserId } from "@/lib/api/user";
 import { cn } from "@/lib/utils";
 
-type SortKey = "fit" | "dday";
+type SortKey = "latest" | "deadline";
 
 const PAGE_SIZE = 9;
 
@@ -27,7 +27,7 @@ export function JobsClient() {
   const [userId, setUserId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string>("all");
   const [activeOrg, setActiveOrg] = useState<string>("all");
-  const [sort, setSort] = useState<SortKey>("fit");
+  const [sort, setSort] = useState<SortKey>("latest");
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -83,13 +83,27 @@ export function JobsClient() {
         (activeOrg === "all" || o.organization === activeOrg),
     );
     const sorted = [...filtered].sort((a, b) => {
-      if (sort === "fit") return (b.score ?? -1) - (a.score ?? -1);
+      if (sort === "latest") {
+        const ta = a.fetched_at ? new Date(a.fetched_at).getTime() : 0;
+        const tb = b.fetched_at ? new Date(b.fetched_at).getTime() : 0;
+        if (ta === tb) {
+          return (b.score ?? -1) - (a.score ?? -1);
+        }
+        return tb - ta;
+      }
       const ta = a.deadline ? new Date(a.deadline).getTime() : Infinity;
       const tb = b.deadline ? new Date(b.deadline).getTime() : Infinity;
       return ta - tb;
     });
     return sorted;
   }, [items, activeType, activeOrg, sort]);
+
+  const topFitJobs = useMemo(() => {
+    return [...items]
+      .filter((o) => o.score != null)
+      .sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
+      .slice(0, 10);
+  }, [items]);
 
   // 필터·정렬을 바꿀 때는 첫 페이지로 되돌린다.
   const selectType = (t: string) => {
@@ -133,6 +147,31 @@ export function JobsClient() {
         <ConnBadge state={state} error={error} />
       </div>
 
+      {/* ── Rolling list ── */}
+      {state === "ok" && topFitJobs.length > 0 && (
+        <div className="border-border bg-card mb-6 overflow-hidden rounded-xl border py-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between px-4">
+            <h2 className="text-point-hover flex items-center gap-1.5 text-sm font-bold">
+              <Sparkles className="size-4" /> 적합도 높은 맞춤 공고
+            </h2>
+          </div>
+          <div className="flex w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_5%,black_95%,transparent)]">
+            <div className="animate-marquee flex w-max gap-4 px-2">
+              {topFitJobs.map((o) => (
+                <div key={o.id} className="w-[300px] shrink-0">
+                  <JobCard job={o} />
+                </div>
+              ))}
+              {topFitJobs.map((o) => (
+                <div key={`${o.id}-clone`} className="w-[300px] shrink-0">
+                  <JobCard job={o} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Filters + sort ── */}
       {state === "ok" && items.length > 0 && (
         <div className="my-4 flex flex-wrap items-center gap-2.5">
@@ -173,14 +212,14 @@ export function JobsClient() {
 
           <div className="border-border bg-card ml-auto flex gap-1.5 rounded-[9px] border p-[3px]">
             <SortButton
-              label="적합도순"
-              active={sort === "fit"}
-              onClick={() => selectSort("fit")}
+              label="최신순"
+              active={sort === "latest"}
+              onClick={() => selectSort("latest")}
             />
             <SortButton
-              label="마감임박순"
-              active={sort === "dday"}
-              onClick={() => selectSort("dday")}
+              label="마감순"
+              active={sort === "deadline"}
+              onClick={() => selectSort("deadline")}
             />
           </div>
         </div>
