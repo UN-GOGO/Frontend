@@ -42,3 +42,6 @@ next-env.d.ts
 
 # claude
 .claude
+# temp/perm test artifacts
+_tmp_*
+__perm_test
