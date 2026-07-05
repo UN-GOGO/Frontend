@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { BookmarkButton } from "@/components/bookmarks/bookmark-button";
+import { JobDetailSkeleton } from "@/components/jobs/job-detail-skeleton";
 import { getOpportunity, logClick, type Opportunity } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 import { ddayChip, fitBadge, orgAbbrev } from "@/lib/opportunity";
@@ -51,9 +52,7 @@ export function JobDetailClient({ id }: { id: string }) {
         공고 목록
       </Link>
 
-      {state === "loading" && (
-        <p className="text-muted-foreground text-sm">공고를 불러오는 중…</p>
-      )}
+      {state === "loading" && <JobDetailSkeleton />}
 
       {state === "error" && (
         <div className="text-muted-foreground py-12 text-center">
