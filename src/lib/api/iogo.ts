@@ -14,6 +14,7 @@ export type Opportunity = {
   location?: string | null;
   source_url: string;
   score?: number | null;
+  fetched_at?: string | null;
 };
 
 export type OpportunityFilters = {
