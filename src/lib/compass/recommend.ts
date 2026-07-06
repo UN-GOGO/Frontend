@@ -15,7 +15,7 @@ export type RecommendResult = {
   timedOut?: boolean;
 };
 
-// LLM 추천 호출은 콜드 스타트·모델 응답 지연으로 API 기본 타임아웃(15s)을 쉽게
+// LLM 추천 호출은 콜드 스타트·모델 응답 지연으로 API 기본 타임아웃(30s)도 쉽게
 // 넘긴다. 여유 있게 잡아야 "느리지만 결국 성공"하는 AI 응답이 타임아웃 때문에
 // 규칙기반으로 조용히 강등되는 걸 막을 수 있다.
 const RECOMMEND_TIMEOUT_MS = 45000;
