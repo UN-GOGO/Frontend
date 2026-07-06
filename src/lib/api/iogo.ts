@@ -1,7 +1,7 @@
 // un-gogo 백엔드(FastAPI) 엔드포인트 호출 레이어.
 // 계약은 backend/app/schemas.py · routers/*.py 와 1:1로 맞춘다.
 
-import { apiGet, apiPost, apiPut } from "./client";
+import { apiGet, apiPost, apiPut, type ApiInit } from "./client";
 
 // ===== 공고 (opportunities) =====
 export type Opportunity = {
@@ -26,7 +26,7 @@ export type OpportunityFilters = {
 
 export function getOpportunities(
   filters: OpportunityFilters = {},
-  init?: { signal?: AbortSignal },
+  init?: ApiInit,
 ): Promise<Opportunity[]> {
   const p = new URLSearchParams();
   if (filters.type) p.set("type", filters.type);
@@ -39,7 +39,7 @@ export function getOpportunities(
 
 export function getOpportunity(
   id: string,
-  init?: { signal?: AbortSignal },
+  init?: ApiInit,
 ): Promise<Opportunity> {
   return apiGet<Opportunity>(`/opportunities/${id}`, init);
 }
@@ -58,10 +58,7 @@ export type Profile = {
 
 export type ProfileUpdate = Partial<Omit<Profile, "id">>;
 
-export function getProfile(
-  userId: string,
-  init?: { signal?: AbortSignal },
-): Promise<Profile> {
+export function getProfile(userId: string, init?: ApiInit): Promise<Profile> {
   return apiGet<Profile>(
     `/profile?user_id=${encodeURIComponent(userId)}`,
     init,
@@ -97,7 +94,7 @@ export function sendChat(
   message: string,
   userId: string,
   sessionId?: string,
-  init?: { signal?: AbortSignal },
+  init?: ApiInit,
 ): Promise<ChatResponse> {
   return apiPost<
     { message: string; user_id: string; session_id?: string },
@@ -115,6 +112,7 @@ export type NewsArticle = {
   source_url?: string | null;
   source_name?: string | null;
   source_api?: string | null;
+  thumbnail_url?: string | null;
   published_at?: string | null;
   created_at?: string | null;
 };
@@ -134,7 +132,7 @@ export type UserStats =
 
 export function getUserStats(
   userId: string,
-  init?: { signal?: AbortSignal },
+  init?: ApiInit,
 ): Promise<UserStats> {
   return apiGet<UserStats>(
     `/insight/stats/${encodeURIComponent(userId)}`,
@@ -159,7 +157,7 @@ export type PersonalizedOpportunities = {
 /** GET /opportunities/personalized/{user_id} */
 export function getPersonalizedOpportunities(
   userId: string,
-  init?: { signal?: AbortSignal },
+  init?: ApiInit,
 ): Promise<PersonalizedOpportunities> {
   return apiGet<PersonalizedOpportunities>(
     `/opportunities/personalized/${encodeURIComponent(userId)}`,
@@ -185,7 +183,7 @@ export type PersonalizedInsights = {
 /** GET /insight/personalized/{user_id} */
 export function getPersonalizedInsights(
   userId: string,
-  init?: { signal?: AbortSignal },
+  init?: ApiInit,
 ): Promise<PersonalizedInsights> {
   return apiGet<PersonalizedInsights>(
     `/insight/personalized/${encodeURIComponent(userId)}`,
