@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Briefcase,
   Compass,
@@ -92,6 +93,14 @@ export function MapHub() {
   const [zoomTarget, setZoomTarget] = useState<Hub | null>(null);
   const router = useRouter();
 
+  // 지도의 점은 <a href>+router.push라 next/link 자동 prefetch를 못 받는다.
+  // 사이드바/하단 네비(next/link 사용)는 이미 프리페치돼 즉시 전환되는데, 지도만
+  // 클릭 시점에야 라우트를 로드해 그만큼 느려 보이고, 여기에 느린 개인화 백엔드
+  // 응답까지 겹쳐 "연결 실패"로 보이는 경우가 잦았다. 마운트 시 미리 당겨온다.
+  useEffect(() => {
+    HUBS.forEach((hub) => router.prefetch(hub.href));
+  }, [router]);
+
   const handleDotClick = (e: React.MouseEvent, hub: Hub) => {
     // 새 탭으로 열기(cmd/ctrl/shift+클릭, 가운데 버튼)는 브라우저 기본 동작을
     // 그대로 둔다 — 여기서 막으면 네이티브 "새 탭에서 열기"가 아예 안 먹는다.
@@ -174,7 +183,7 @@ function MapDot({
 }) {
   const { href, label, desc, icon: Icon, top, left, labelBelow } = hub;
   return (
-    <a
+    <Link
       href={href}
       onClick={onClick}
       aria-label={`${label}(으)로 이동`}
@@ -214,6 +223,6 @@ function MapDot({
           }`}
         />
       </span>
-    </a>
+    </Link>
   );
 }
