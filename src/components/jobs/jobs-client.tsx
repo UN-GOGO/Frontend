@@ -19,6 +19,18 @@ type SortKey = "latest" | "deadline";
 
 const PAGE_SIZE = 9;
 
+// "마감순" 정렬 키 — 오늘 이후 남은 마감만 가까운 순으로 앞에 오고, 이미 지난
+// 마감(예: 2017년 옛날 자료)이나 마감일 없는 공고는 맨 뒤로 보낸다. 원본
+// 날짜로 그냥 오름차순 정렬하면 옛날에 지난 마감이 "가장 이른 날짜"라서
+// 맨 앞으로 와버리는 문제가 있었다. 컴포넌트 렌더 바깥의 순수 함수로 둬서
+// `Date.now()` 호출이 렌더 중 직접 일어나지 않게 한다(react-hooks/purity).
+function deadlineRank(o: Opportunity): number {
+  if (!o.deadline) return Infinity;
+  const t = new Date(o.deadline).getTime();
+  if (Number.isNaN(t)) return Infinity;
+  return t >= Date.now() ? t : Infinity;
+}
+
 export function JobsClient() {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -36,15 +48,27 @@ export function JobsClient() {
       try {
         const uid = await getUserId();
         setUserId(uid);
-        // 개인화 공고 우선 시도. 나침반 미완료(has_compass=false)거나
-        // 결과가 비면 일반 공고 목록으로 폴백한다.
-        const p = await getPersonalizedOpportunities(uid, {
-          signal: ctrl.signal,
-        });
-        if (p.has_compass && p.items.length > 0) {
-          setItems(p.items);
-          setPersonalized(true);
-        } else {
+        // 개인화 공고 우선 시도. 나침반 미완료(has_compass=false)거나 결과가
+        // 비거나, 개인화 호출 자체가 실패/지연(타임아웃)돼도 일반 공고
+        // 목록으로 폴백한다 — 개인화는 user_logs 조회+스코어링이 더 무거워
+        // 가끔 오래 걸리는데, 그 이유로 페이지 전체가 "연결 안 됨"으로
+        // 보이지 않게 하기 위함.
+        let usedPersonalized = false;
+        try {
+          const p = await getPersonalizedOpportunities(uid, {
+            signal: ctrl.signal,
+          });
+          if (p.has_compass && p.items.length > 0) {
+            setItems(p.items);
+            setPersonalized(true);
+            usedPersonalized = true;
+          }
+        } catch (e: unknown) {
+          if (ctrl.signal.aborted) return;
+          console.error("개인화 공고 조회 실패 — 일반 목록으로 폴백:", e);
+        }
+
+        if (!usedPersonalized) {
           const all = await getOpportunities(
             { limit: 100 },
             { signal: ctrl.signal },
@@ -91,9 +115,7 @@ export function JobsClient() {
         }
         return tb - ta;
       }
-      const ta = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-      const tb = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-      return ta - tb;
+      return deadlineRank(a) - deadlineRank(b);
     });
     return sorted;
   }, [items, activeType, activeOrg, sort]);
