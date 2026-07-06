@@ -76,7 +76,7 @@ export function InsightClient() {
               </div>
             )}
 
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
               {recs?.items?.map((a) => (
                 <InsightCard key={a.id} article={a} />
               ))}

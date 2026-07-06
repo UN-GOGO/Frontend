@@ -24,7 +24,6 @@ const copy = {
     "전공·언어·스킬에 맞는 국제기구 공고를 찾아 적합도와 함께 정리해 드려요. 아래에서 골라보거나 편하게 물어보세요.",
   suggestLabel: "이렇게 물어보세요",
   placeholder: "예: 내 스펙으로 지원 가능한 데이터 공고 찾아줘",
-  inputHint: "외교부 공공데이터 기반 · 매일 09:00 KST 갱신",
   sourcesLabel: "참고한 자료",
 } as const;
 
