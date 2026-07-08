@@ -80,7 +80,9 @@ export function JobsClient() {
     const filtered =
       activeTab === "all"
         ? allItems
-        : allItems.filter((o) => o.type === activeTab);
+        : activeTab === "program"
+          ? allItems.filter((o) => o.type === "program" || o.type === "UNV")
+          : allItems.filter((o) => o.type === activeTab);
 
     return [...filtered].sort((a, b) => {
       if (sort === "latest") {
