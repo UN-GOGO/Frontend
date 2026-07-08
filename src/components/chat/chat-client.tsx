@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
-import { sendChat, type ChatResponse } from "@/lib/api/iogo";
+import { sendChat, sendChatStream, type ChatResponse } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 
 type Msg = {
@@ -63,22 +63,55 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
     setInput("");
     setMsgs((m) => [...m, { role: "user", text }]);
     setPending(true);
-    try {
-      const res = await sendChat(text, userIdRef.current, sessionId);
-      setSessionId(res.session_id);
-      setMsgs((m) => [
-        ...m,
-        { role: "bot", text: res.reply, sources: res.sources },
-      ]);
-      setState("ok");
-      setError(null);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
-      setState("error");
-      setMsgs((m) => [...m, { role: "bot", text: "(연결 실패)" }]);
-    } finally {
-      setPending(false);
-    }
+
+    // 스트리밍용 빈 봇 말풍선을 먼저 추가 (토큰 도착마다 채워진다)
+    setMsgs((m) => [...m, { role: "bot", text: "" }]);
+
+    const patchLastBot = (patch: (last: Msg) => Msg) => {
+      setMsgs((m) => {
+        const next = [...m];
+        const last = next[next.length - 1];
+        if (last?.role === "bot") {
+          next[next.length - 1] = patch(last);
+        }
+        return next;
+      });
+    };
+
+    const fallbackToNonStreaming = async () => {
+      // 스트리밍 실패 시 기존 논스트리밍으로 재시도
+      try {
+        const res = await sendChat(text, userIdRef.current, sessionId);
+        patchLastBot(() => ({
+          role: "bot",
+          text: res.reply,
+          sources: res.sources,
+        }));
+        setSessionId(res.session_id);
+        setState("ok");
+        setError(null);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : String(e));
+        setState("error");
+        patchLastBot(() => ({ role: "bot", text: "(연결 실패)" }));
+      } finally {
+        setPending(false);
+      }
+    };
+
+    await sendChatStream(text, userIdRef.current, sessionId, {
+      onDelta: (delta) => {
+        patchLastBot((last) => ({ ...last, text: last.text + delta }));
+      },
+      onDone: ({ session_id, sources }) => {
+        setSessionId(session_id);
+        patchLastBot((last) => ({ ...last, sources }));
+        setState("ok");
+        setError(null);
+        setPending(false);
+      },
+      onError: () => void fallbackToNonStreaming(),
+    });
   };
 
   const isEmpty = msgs.length === 0;

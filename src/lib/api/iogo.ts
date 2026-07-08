@@ -1,7 +1,7 @@
 // un-gogo 백엔드(FastAPI) 엔드포인트 호출 레이어.
 // 계약은 backend/app/schemas.py · routers/*.py 와 1:1로 맞춘다.
 
-import { apiGet, apiPost, apiPut, type ApiInit } from "./client";
+import { apiGet, apiPost, apiPut, BASE_URL, type ApiInit } from "./client";
 
 // ===== 공고 (opportunities) =====
 export type Opportunity = {
@@ -168,6 +168,67 @@ export function sendChat(
     { message: string; user_id: string; session_id?: string },
     ChatResponse
   >("/chat", { message, user_id: userId, session_id: sessionId }, init);
+}
+
+export type ChatStreamCallbacks = {
+  onDelta: (text: string) => void;
+  onDone: (payload: { session_id: string; sources: ChatSource[] }) => void;
+  onError: (e: unknown) => void;
+};
+
+/** POST /chat/stream — SSE 스트리밍. 토큰 단위로 onDelta 호출. */
+export async function sendChatStream(
+  message: string,
+  userId: string,
+  sessionId: string | undefined,
+  callbacks: ChatStreamCallbacks,
+  init?: { signal?: AbortSignal },
+): Promise<void> {
+  try {
+    const resp = await fetch(`${BASE_URL}/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message,
+        user_id: userId,
+        session_id: sessionId,
+      }),
+      signal: init?.signal,
+    });
+    if (!resp.ok || !resp.body) {
+      throw new Error(`stream failed: ${resp.status}`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE 이벤트는 빈 줄(\n\n)로 구분된다
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? ""; // 마지막 조각은 미완성일 수 있음
+
+      for (const event of events) {
+        const line = event.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const payload = JSON.parse(line.slice("data: ".length));
+        if (payload.delta) {
+          callbacks.onDelta(payload.delta);
+        } else if (payload.done) {
+          callbacks.onDone({
+            session_id: payload.session_id,
+            sources: payload.sources ?? [],
+          });
+        }
+      }
+    }
+  } catch (e) {
+    callbacks.onError(e);
+  }
 }
 
 // ===== 개인화 추천 · 통계 (insight) =====
