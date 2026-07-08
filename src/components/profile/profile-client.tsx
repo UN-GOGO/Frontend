@@ -79,27 +79,33 @@ export function ProfileClient() {
           options={STATUS_OPTIONS.map((o) => ({ value: o, label: o }))}
         />
         <TextField
-          label="전공 / 관심 주제"
-          value={profile.major}
-          onChange={(v) => set("major", v)}
+          label="관심 주제"
+          value={profile.interest_hint}
+          onChange={(v) => set("interest_hint", v)}
           placeholder="예: 국제학 · 기후"
+        />
+        <TextField
+          label="학사 전공"
+          value={profile.bachelor_major}
+          onChange={(v) => set("bachelor_major", v)}
+          placeholder="예: 정치외교학"
         />
         <SelectField
           label="영어 수준"
-          value={profile.english}
-          onChange={(v) => set("english", v)}
+          value={profile.english_level}
+          onChange={(v) => set("english_level", v)}
           options={ENGLISH_OPTIONS.map((o) => ({ value: o, label: o }))}
         />
         <SelectField
           label="관련 경력"
-          value={profile.experience}
-          onChange={(v) => set("experience", v)}
+          value={profile.experience_years}
+          onChange={(v) => set("experience_years", v)}
           options={EXPERIENCE_OPTIONS.map((o) => ({ value: o, label: o }))}
         />
         <TextField
           label="제2외국어"
-          value={profile.second}
-          onChange={(v) => set("second", v)}
+          value={profile.second_language}
+          onChange={(v) => set("second_language", v)}
           placeholder="예: 프랑스어(중급)"
         />
         <TextField
@@ -110,8 +116,8 @@ export function ProfileClient() {
         />
         <SelectField
           label="진출 경로"
-          value={profile.targetPath}
-          onChange={(v) => set("targetPath", v)}
+          value={profile.target_path}
+          onChange={(v) => set("target_path", v)}
           options={PATH_OPTIONS.map((o) => ({ value: o, label: o }))}
         />
 
