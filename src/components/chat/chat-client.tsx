@@ -38,8 +38,6 @@ const SUGGESTIONS = [
 const AVATAR_GRADIENT = "linear-gradient(135deg, var(--point), var(--primary))";
 
 export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
-  const [state, setState] = useState<ConnState>("loading");
-  const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [input, setInput] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -50,7 +48,6 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   useEffect(() => {
     getUserId().then((id) => {
       userIdRef.current = id;
-      setState("ok"); // 실제 연결 여부는 첫 전송에서 확정
     });
   }, []);
 
@@ -139,9 +136,6 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
             </span>
           </div>
           <p className="text-muted-foreground mt-0.5 text-[13px]">{copy.sub}</p>
-        </div>
-        <div className="ml-auto hidden sm:block">
-          <ConnBadge state={state} error={error} />
         </div>
       </div>
 
