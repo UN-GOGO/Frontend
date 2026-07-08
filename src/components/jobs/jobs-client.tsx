@@ -7,16 +7,22 @@ import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { JobCard } from "@/components/jobs/job-card";
 import { JobCardSkeletonGrid } from "@/components/jobs/job-card-skeleton";
 import {
+  getMatchedOpportunities,
   getOpportunities,
   getPersonalizedOpportunities,
   type Opportunity,
   type PersonalizedOpportunities,
 } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
+import {
+  getLatestNavigatorResult,
+  type NavigatorResultDetail,
+} from "@/lib/compass/history";
 import { cn } from "@/lib/utils";
 
 type SortKey = "latest" | "deadline";
 type TabKey = "all" | "JPO" | "internship" | "program";
+type PersonalizedItem = PersonalizedOpportunities["items"][number];
 
 const PAGE_SIZE = 9;
 
@@ -31,10 +37,12 @@ export function JobsClient() {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
   const [personalizedData, setPersonalizedData] = useState<PersonalizedOpportunities | null>(null);
+  const [compassResult, setCompassResult] = useState<NavigatorResultDetail | null>(null);
   const [allItems, setAllItems] = useState<Opportunity[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [sort, setSort] = useState<SortKey>("latest");
   const [page, setPage] = useState(1);
+  const [referenceTime, setReferenceTime] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,13 +50,22 @@ export function JobsClient() {
     (async () => {
       try {
         const uid = await getUserId();
-        const [personalized, all] = await Promise.all([
+        const [personalized, all, compass] = await Promise.all([
           getPersonalizedOpportunities(uid, { signal: ctrl.signal })
             .catch((): PersonalizedOpportunities => ({ has_compass: false, items: [] })),
-          getOpportunities({ limit: 100 }, { signal: ctrl.signal }),
+          getMatchedOpportunities(uid, 100, { signal: ctrl.signal })
+            .then((items) =>
+              items.length > 0
+                ? items
+                : getOpportunities({ limit: 100 }, { signal: ctrl.signal }),
+            )
+            .catch(() => getOpportunities({ limit: 100 }, { signal: ctrl.signal })),
+          getLatestNavigatorResult().catch(() => null),
         ]);
         setPersonalizedData(personalized);
+        setCompassResult(compass);
         setAllItems(all);
+        setReferenceTime(Date.now());
         setState("ok");
       } catch (e: unknown) {
         if (ctrl.signal.aborted) return;
@@ -59,21 +76,48 @@ export function JobsClient() {
     return () => ctrl.abort();
   }, []);
 
-  // 캐러셀 상단 요약 문구
-  const summaryText = useMemo(() => {
-    if (!personalizedData?.has_compass || !personalizedData.items.length) return "";
-    const orgs = [
-      ...new Set(
-        personalizedData.items
-          .flatMap((i) => i.match_reasons ?? [])
-          .filter((r) => r.includes("추천 기구"))
-          .map((r) => r.replace(" 추천 기구", "")),
-      ),
-    ].slice(0, 3);
-    return orgs.length > 0
-      ? `나침반 결과 기반 추천 · ${orgs.join("·")} 관련 공고 ${personalizedData.items.length}개`
-      : `나침반 결과 기반 맞춤 공고 ${personalizedData.items.length}개`;
-  }, [personalizedData]);
+  // 캐러셀: 직접 매칭 공고 우선. 없으면 나침반 기반 후보를 유지해 섹션이 사라지지 않게 한다.
+  const carouselItems = useMemo(() => {
+    const hasCompass = Boolean(personalizedData?.has_compass || compassResult);
+    if (!hasCompass) return [];
+    const today = referenceTime || 0;
+    const sortForCarousel = (items: PersonalizedItem[]) =>
+      [...items].sort((a, b) => {
+        const da = a.deadline ? new Date(a.deadline).getTime() - today : Infinity;
+        const db = b.deadline ? new Date(b.deadline).getTime() - today : Infinity;
+        // 마감 지난 공고(음수)는 뒤로
+        const urgentA = da >= 0 ? da : Infinity;
+        const urgentB = db >= 0 ? db : Infinity;
+        if (urgentA !== urgentB) return urgentA - urgentB;
+        return (b.match_score ?? 0) - (a.match_score ?? 0);
+      });
+
+    const personalizedItems = personalizedData?.items ?? [];
+    const directMatches = personalizedItems.filter(
+      (o) => (o.match_score ?? 0) > 0,
+    );
+    if (directMatches.length > 0 || personalizedItems.length > 0) {
+      return sortForCarousel(
+        directMatches.length > 0 ? directMatches : personalizedItems,
+      ).slice(0, 10);
+    }
+
+    const recommendedAbbrs = (compassResult?.recommendations ?? [])
+      .map((r) => r.abbr.trim().toUpperCase())
+      .filter(Boolean);
+    const recommended = allItems.filter((item) => {
+      const haystack = `${item.organization} ${item.title} ${item.description ?? ""}`.toUpperCase();
+      return recommendedAbbrs.some((abbr) => haystack.includes(abbr));
+    });
+
+    return sortForCarousel(recommended.length > 0 ? recommended : allItems).slice(0, 10);
+  }, [allItems, compassResult, personalizedData, referenceTime]);
+
+  // LLM 요약 — 백엔드가 반환한 summary 우선, 없으면 기본 문구
+  const summaryText = personalizedData?.summary ||
+    (carouselItems.length
+      ? `나침반 결과 기반 맞춤 공고 ${carouselItems.length}개`
+      : "");
 
   // 탭 + 정렬 필터링
   const visible = useMemo(() => {
@@ -86,8 +130,17 @@ export function JobsClient() {
 
     return [...filtered].sort((a, b) => {
       if (sort === "latest") {
-        const ta = a.fetched_at ? new Date(a.fetched_at).getTime() : 0;
-        const tb = b.fetched_at ? new Date(b.fetched_at).getTime() : 0;
+        // 실제 게시일(posted_at) 우선, 없으면 수집일(fetched_at) 폴백
+        const ta = a.posted_at
+          ? new Date(a.posted_at).getTime()
+          : a.fetched_at
+            ? new Date(a.fetched_at).getTime()
+            : 0;
+        const tb = b.posted_at
+          ? new Date(b.posted_at).getTime()
+          : b.fetched_at
+            ? new Date(b.fetched_at).getTime()
+            : 0;
         return tb - ta;
       }
       const ta = a.deadline ? new Date(a.deadline).getTime() : Infinity;
@@ -113,9 +166,7 @@ export function JobsClient() {
   };
 
   const showCarousel =
-    state === "ok" &&
-    personalizedData?.has_compass &&
-    (personalizedData.items.length ?? 0) > 0;
+    state === "ok" && carouselItems.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-[1120px] px-6 py-7">
@@ -167,9 +218,9 @@ export function JobsClient() {
           </div>
           <div
             ref={carouselRef}
-            className="flex gap-4 overflow-x-auto scroll-smooth px-5 pb-5 [scroll-snap-type:x_mandatory] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-4 overflow-x-auto scroll-smooth px-6 pb-5 [scroll-snap-type:x_mandatory] [scroll-padding-left:1.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {personalizedData!.items.map((o) => (
+            {carouselItems.map((o) => (
               <div key={o.id} className="w-[300px] shrink-0 [scroll-snap-align:start]">
                 <JobCard job={o} />
               </div>
