@@ -25,6 +25,7 @@ const copy = {
   suggestLabel: "이렇게 물어보세요",
   placeholder: "예: 내 스펙으로 지원 가능한 데이터 공고 찾아줘",
   sourcesLabel: "참고한 자료",
+  inputHint: "AI가 생성한 답변은 부정확할 수 있어요. 중요한 정보는 원문 공고를 확인하세요.",
 } as const;
 
 const SUGGESTIONS = [
