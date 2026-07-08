@@ -4,7 +4,6 @@ import { ArrowRight, ArrowUp, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { sendChat, type ChatResponse } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 
@@ -25,6 +24,8 @@ const copy = {
   suggestLabel: "이렇게 물어보세요",
   placeholder: "예: 내 스펙으로 지원 가능한 데이터 공고 찾아줘",
   sourcesLabel: "참고한 자료",
+  inputHint:
+    "취준봇은 실시간 데이터를 바탕으로 답변하며, AI 답변은 오차가 발생할 수 있습니다.",
 } as const;
 
 const SUGGESTIONS = [
@@ -37,8 +38,6 @@ const SUGGESTIONS = [
 const AVATAR_GRADIENT = "linear-gradient(135deg, var(--point), var(--primary))";
 
 export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
-  const [state, setState] = useState<ConnState>("loading");
-  const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [input, setInput] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -49,7 +48,6 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   useEffect(() => {
     getUserId().then((id) => {
       userIdRef.current = id;
-      setState("ok"); // 실제 연결 여부는 첫 전송에서 확정
     });
   }, []);
 
@@ -70,11 +68,7 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
         ...m,
         { role: "bot", text: res.reply, sources: res.sources },
       ]);
-      setState("ok");
-      setError(null);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
-      setState("error");
+    } catch {
       setMsgs((m) => [...m, { role: "bot", text: "(연결 실패)" }]);
     } finally {
       setPending(false);
@@ -105,9 +99,6 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
             </span>
           </div>
           <p className="text-muted-foreground mt-0.5 text-[13px]">{copy.sub}</p>
-        </div>
-        <div className="ml-auto hidden sm:block">
-          <ConnBadge state={state} error={error} />
         </div>
       </div>
 
