@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera } from "lucide-react";
+import { Camera, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -54,14 +54,47 @@ const LOADING_MSGS = [
 ];
 
 const PROFILE_LABELS: [keyof ProfileSummary, string][] = [
+  ["nickname", "닉네임"],
   ["status", "현재 상태"],
-  ["major", "전공/관심"],
-  ["experience", "경력"],
-  ["english", "영어"],
-  ["second", "제2외국어"],
+  ["familiarity", "국제기구 친숙도"],
+  ["interest_hint", "전공 또는 요즘 관심사"],
+  ["bachelor_major", "학사 전공"],
+  ["graduate_major", "석사 전공"],
+  ["graduation_timing", "졸업 또는 졸업예정 시기"],
+  ["experience_years", "관련 경력"],
+  ["english_level", "영어 업무 수행 수준"],
+  ["second_language", "제2외국어"],
+  ["target_field", "관심 분야"],
+  ["target_path", "관심 진출 경로"],
   ["cert", "자격증"],
-  ["targetPath", "진출 경로"],
 ];
+
+function evidenceTags(rec: Recommendation) {
+  const raw = [...(rec.tags ?? []), ...(rec.matched ?? [])]
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  const unique = Array.from(new Set(raw));
+  const fallback = [rec.field, rec.lang_tip ? "언어 역량" : "", "프로필 연계"]
+    .filter(Boolean)
+    .map((tag) => String(tag));
+  return [...unique, ...fallback].slice(0, 3);
+}
+
+function evidenceReasons(rec: Recommendation) {
+  const direct = (rec.reasons ?? [])
+    .map((reason) => reason.trim())
+    .filter(Boolean);
+  if (direct.length) return direct;
+
+  const matched = (rec.matched ?? []).slice(0, 3).map((item) => {
+    return `'${item}' 신호 → ${rec.org || rec.abbr}의 ${rec.field || "주요 분야"}와 연결돼요.`;
+  });
+  if (matched.length) return matched;
+
+  return [
+    `프로필과 퀴즈 답변의 방향 → ${rec.org || rec.abbr}의 역할과 맞닿아 있어요.`,
+  ];
+}
 
 export function Result({
   summary,
@@ -82,7 +115,7 @@ export function Result({
   const recs = (data?.recommendations ?? []).slice(0, 3);
   const topScore = scorePercent(recs[0]?.score);
   const angle = loading ? 20 : Math.round((topScore / 100) * 60 - 10);
-  const nick = summary.nick ? `${summary.nick}님, ` : "";
+  const nick = summary.nickname ? `${summary.nickname}님, ` : "";
   const topline = loading
     ? "분석 중…"
     : nick +
@@ -99,7 +132,7 @@ export function Result({
     try {
       await saveNodeAsImage(
         captureRef.current,
-        `나침반_결과${summary.nick ? `_${summary.nick}` : ""}.png`,
+        `나침반_결과${summary.nickname ? `_${summary.nickname}` : ""}.png`,
         "#f4f7fb",
       );
     } catch (e) {
@@ -365,7 +398,10 @@ function Feedback() {
 }
 
 function OrgCard({ rec, rank }: { rec: Recommendation; rank: number }) {
+  const [open, setOpen] = useState(false);
   const pct = scorePercent(rec.score);
+  const tags = evidenceTags(rec);
+  const reasons = evidenceReasons(rec);
   return (
     <div className="border-border bg-card flex flex-col gap-3 rounded-[16px] border p-4">
       <div className="flex items-start gap-3">
@@ -404,20 +440,23 @@ function OrgCard({ rec, rank }: { rec: Recommendation; rank: number }) {
         </p>
       )}
 
-      {(rec.matched?.length || rec.missing?.length) > 0 && (
+      <div className="flex flex-wrap gap-1.5">
+        {tags.map((tag, i) => (
+          <span
+            key={`${tag}-${i}`}
+            className="bg-secondary border-border text-foreground/80 rounded-full border px-2 py-0.5 text-[11px]"
+          >
+            {tag} ✓
+          </span>
+        ))}
+      </div>
+
+      {(rec.missing?.length ?? 0) > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {(rec.matched ?? []).map((m, i) => (
-            <span
-              key={`m${i}`}
-              className="bg-secondary border-border text-foreground/80 rounded-full border px-2 py-0.5 text-[11px]"
-            >
-              {m} ✓
-            </span>
-          ))}
-          {(rec.missing ?? []).map((m, i) => (
+          {(rec.missing ?? []).slice(0, 2).map((m, i) => (
             <span
               key={`x${i}`}
-              className="rounded-full border border-[#FDE68A] bg-[#FEF9EC] px-2 py-0.5 text-[11px] text-[#92400E]"
+              className="border-point-border bg-accent text-accent-foreground rounded-full border px-2 py-0.5 text-[11px]"
             >
               보완: {m}
             </span>
@@ -425,9 +464,49 @@ function OrgCard({ rec, rank }: { rec: Recommendation; rank: number }) {
         </div>
       )}
       {rec.lang_tip && (
-        <p className="text-muted-foreground mt-auto text-[11px]">
-          🗣️ {rec.lang_tip}
-        </p>
+        <p className="text-muted-foreground text-[11px]">🗣️ {rec.lang_tip}</p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-point-hover hover:text-foreground mt-auto inline-flex items-center gap-1 text-left text-xs font-bold transition-colors"
+      >
+        {open ? (
+          <ChevronUp className="size-3.5" />
+        ) : (
+          <ChevronDown className="size-3.5" />
+        )}
+        추천 이유 자세히 보기
+      </button>
+
+      {open && (
+        <div className="border-border bg-secondary/40 rounded-[12px] border p-3">
+          <p className="text-foreground mb-2 text-xs font-extrabold">
+            답변 → 근거
+          </p>
+          <div className="space-y-2">
+            {reasons.map((reason, i) => (
+              <p
+                key={i}
+                className="text-muted-foreground text-xs leading-relaxed"
+              >
+                ✓ {reason}
+              </p>
+            ))}
+            {rec.creative && (
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                🔎 {rec.creative}
+              </p>
+            )}
+            {(rec.missing?.length ?? 0) > 0 && (
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                보완점: {(rec.missing ?? []).join(", ")}을 조금 더 쌓으면 강점이
+                또렷해져요.
+              </p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

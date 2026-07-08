@@ -20,17 +20,18 @@ export type SaveResult = { ok: boolean; error?: string };
 /** 정본 ProfileSummary → 백엔드 Profile(개인화용) 파생 매핑. 손실이 있어도 무방(정본은 별도). */
 function toBackendProfile(p: ProfileSummary) {
   const languages = [
-    p.english && `영어: ${p.english}`,
-    p.second && `제2외국어: ${p.second}`,
+    p.english_level && `영어: ${p.english_level}`,
+    p.second_language && `제2외국어: ${p.second_language}`,
   ].filter(Boolean) as string[];
   const experience = [
-    p.experience && `경력: ${p.experience}`,
+    p.experience_years && `경력: ${p.experience_years}`,
     p.cert && `자격증: ${p.cert}`,
-    p.targetPath && `진출경로: ${p.targetPath}`,
+    p.target_path && `진출경로: ${p.target_path}`,
   ].filter(Boolean) as string[];
   return {
     education: p.status || null,
-    major: p.major || null,
+    major:
+      (p.track === "interest" ? p.interest_hint : p.bachelor_major) || null,
     languages,
     experience,
   };
