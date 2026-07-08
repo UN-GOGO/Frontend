@@ -43,7 +43,8 @@ export function JobsClient() {
       try {
         const uid = await getUserId();
         const [personalized, all] = await Promise.all([
-          getPersonalizedOpportunities(uid, { signal: ctrl.signal }),
+          getPersonalizedOpportunities(uid, { signal: ctrl.signal })
+            .catch((): PersonalizedOpportunities => ({ has_compass: false, items: [] })),
           getOpportunities({ limit: 100 }, { signal: ctrl.signal }),
         ]);
         setPersonalizedData(personalized);
@@ -164,7 +165,7 @@ export function JobsClient() {
           </div>
           <div
             ref={carouselRef}
-            className="flex gap-4 overflow-x-auto scroll-smooth px-5 pb-5 [scroll-snap-type:x_mandatory] [scrollbar-width:none]"
+            className="flex gap-4 overflow-x-auto scroll-smooth px-5 pb-5 [scroll-snap-type:x_mandatory] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {personalizedData!.items.map((o) => (
               <div key={o.id} className="w-[300px] shrink-0 [scroll-snap-align:start]">
@@ -176,11 +177,13 @@ export function JobsClient() {
       )}
 
       {/* ── 섹션 B: 전체 공고 그리드 ── */}
-      <div className="mb-1">
-        <h2 className="text-foreground text-lg font-extrabold tracking-tight">
-          전체 공고
-        </h2>
-      </div>
+      {state === "ok" && (
+        <div className="mb-1">
+          <h2 className="text-foreground text-lg font-extrabold tracking-tight">
+            전체 공고
+          </h2>
+        </div>
+      )}
 
       {/* 탭 + 정렬 */}
       {state === "ok" && allItems.length > 0 && (
