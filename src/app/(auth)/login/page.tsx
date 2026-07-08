@@ -1,7 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -17,8 +18,10 @@ import { createClient } from "@/lib/supabase/client";
 import { signInWithProvider, type OAuthProvider } from "@/lib/supabase/oauth";
 import { loginSchema, type LoginValues } from "@/lib/validations/auth";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/";
 
   const {
     register,
@@ -32,7 +35,7 @@ export default function LoginPage() {
   });
 
   const onSocial = async (provider: OAuthProvider) => {
-    const error = await signInWithProvider(provider, "/");
+    const error = await signInWithProvider(provider, next);
     if (error) {
       setError("root", {
         message: "소셜 로그인에 실패했어요. 잠시 후 다시 시도해 주세요.",
@@ -54,7 +57,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
+    router.push(next);
   };
 
   return (
@@ -180,7 +183,14 @@ export default function LoginPage() {
           <div className="mt-[18px] flex flex-col items-center gap-3">
             <p className="text-muted-foreground/80 text-[13px]">
               계정이 없으세요?{" "}
-              <Link href="/signup" className="text-point-hover font-extrabold">
+              <Link
+                href={
+                  next !== "/"
+                    ? `/signup?next=${encodeURIComponent(next)}`
+                    : "/signup"
+                }
+                className="text-point-hover font-extrabold"
+              >
                 회원가입
               </Link>
             </p>
@@ -188,5 +198,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

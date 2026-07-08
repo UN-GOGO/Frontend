@@ -16,14 +16,19 @@ export type CompassTrack = "interest" | "advanced";
  */
 export type ProfileSummary = {
   track: CompassTrack | "";
-  nick: string;
-  status: string; // 현재 상태 (공통)
-  major: string; // A: 요즘 관심 주제 · B: 학사 전공 (공통 키)
-  english: string; // 영어 업무 수행 수준 (공통, 객관식)
-  experience: string; // 관련 경력 (B 전용)
-  second: string; // 제2외국어 (B 전용)
-  cert: string; // 자격증 (B 전용)
-  targetPath: string; // 관심 진출 경로 (B 전용)
+  nickname: string; // 닉네임 (A 전용/선택)
+  status: string; // 현재 상태 (공통, 필수)
+  familiarity: string; // 국제기구 친숙도 (A 전용, 필수)
+  interest_hint: string; // 전공 또는 요즘 관심사 (A 전용, 선택)
+  bachelor_major: string; // 학사 전공 (B 전용, 필수)
+  graduate_major: string; // 석사 전공 (B 전용, 선택)
+  graduation_timing: string; // 졸업 또는 졸업예정 시기 (B 전용, 선택)
+  experience_years: string; // 관련 경력 (B 전용, 필수)
+  english_level: string; // 영어 업무 수행 수준 (B 전용, 필수)
+  second_language: string; // 제2외국어 (B 전용, 선택)
+  target_field: string; // 관심 분야 (B 전용, 선택)
+  target_path: string; // 관심 진출 경로 (B 전용, 선택)
+  cert: string; // 자격증 (B 전용, 선택 - 기존 호환 보존)
 };
 
 /** 퀴즈 문항 정의 */
@@ -70,6 +75,9 @@ export type Recommendation = {
   org: string;
   field: string;
   score: number; // 백엔드 AI는 0~1, 오프라인 폴백은 0~100
+  tags?: string[];
+  reasons?: string[];
+  creative?: string;
   matched: string[];
   missing: string[];
   lang_tip?: string;

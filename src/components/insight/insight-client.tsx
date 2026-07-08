@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import Link from "next/link";
 
-import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
+import { type ConnState } from "@/components/common/conn-badge";
 import { InsightCard } from "@/components/insight/insight-card";
 import { InsightSkeleton } from "@/components/insight/insight-card-skeleton";
 import {
@@ -15,7 +15,6 @@ import { getUserId } from "@/lib/api/user";
 
 export function InsightClient() {
   const [state, setState] = useState<ConnState>("loading");
-  const [error, setError] = useState<string | null>(null);
   const [recs, setRecs] = useState<PersonalizedInsights | null>(null);
 
   useEffect(() => {
@@ -28,9 +27,8 @@ export function InsightClient() {
         });
         setRecs(r);
         setState("ok");
-      } catch (e: unknown) {
+      } catch {
         if (ctrl.signal.aborted) return;
-        setError(e instanceof Error ? e.message : String(e));
         setState("error");
       }
     })();
@@ -41,7 +39,6 @@ export function InsightClient() {
     <div className="mx-auto w-full max-w-[1120px] px-6 py-8">
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-foreground text-xl font-bold">인사이트</h1>
-        <ConnBadge state={state} error={error} />
       </div>
 
       {state === "loading" && <InsightSkeleton />}

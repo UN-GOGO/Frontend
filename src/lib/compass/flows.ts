@@ -18,14 +18,19 @@ import type {
 /** 저장/초기화용 빈 프로필 */
 export const EMPTY_PROFILE: ProfileSummary = {
   track: "",
-  nick: "",
+  nickname: "",
   status: "",
-  major: "",
-  english: "",
-  experience: "",
-  second: "",
+  familiarity: "",
+  interest_hint: "",
+  bachelor_major: "",
+  graduate_major: "",
+  graduation_timing: "",
+  experience_years: "",
+  english_level: "",
+  second_language: "",
+  target_field: "",
+  target_path: "",
   cert: "",
-  targetPath: "",
 };
 
 // ===== 공통 선택지 (마이페이지 프로필 폼도 재사용) =====
@@ -84,23 +89,30 @@ export type ProfileStep = {
 
 const INTEREST_PROFILE: ProfileStep[] = [
   {
+    key: "nickname",
+    kind: "text",
+    ask: "닉네임을 알려주세요. (선택)",
+    placeholder: "선택",
+    optional: true,
+  },
+  {
     key: "status",
     kind: "single",
     ask: "지금은 어떤 상황에 가장 가까운가요?",
     opts: STATUS_OPTIONS,
   },
   {
-    key: "major",
-    kind: "text",
-    ask: "요즘 관심 있는 주제나 전공이 있나요? 편하게 적어주세요. (없어도 괜찮아요)",
-    placeholder: "예: 환경, 국제뉴스, 아직 없음",
-    optional: true,
+    key: "familiarity",
+    kind: "single",
+    ask: "국제기구 친숙도는 어느 정도인가요?",
+    opts: ["거의 모른다", "이름만 들어봤다", "몇 곳은 알고 있다"],
   },
   {
-    key: "english",
-    kind: "single",
-    ask: "영어는 어느 정도가 편한가요? 부담 없이 골라주세요.",
-    opts: ENGLISH_OPTIONS,
+    key: "interest_hint",
+    kind: "text",
+    ask: "전공 또는 요즘 관심사가 있나요? 편하게 적어주세요.",
+    placeholder: "예: 경제학, 환경, 국제뉴스, 아직 없음",
+    optional: true,
   },
 ];
 
@@ -112,29 +124,56 @@ const ADVANCED_PROFILE: ProfileStep[] = [
     opts: STATUS_OPTIONS,
   },
   {
-    key: "major",
+    key: "bachelor_major",
     kind: "text",
     ask: "학사 전공이 어떻게 되나요?",
     placeholder: "예: 환경공학",
   },
   {
-    key: "experience",
+    key: "graduate_major",
+    kind: "text",
+    ask: "석사 전공이 있다면 알려주세요.",
+    placeholder: "해당 시",
+    optional: true,
+  },
+  {
+    key: "graduation_timing",
+    kind: "text",
+    ask: "졸업 또는 졸업예정 시기를 알려주세요.",
+    placeholder: "예: 2026-02",
+    optional: true,
+  },
+  {
+    key: "experience_years",
     kind: "single",
     ask: "국제기구 관련 경력은 어느 정도인가요?",
     opts: EXPERIENCE_OPTIONS,
   },
   {
-    key: "english",
+    key: "english_level",
     kind: "single",
     ask: "영어 업무 수행 수준은 어디에 가까운가요?",
     opts: ENGLISH_OPTIONS,
   },
   {
-    key: "second",
+    key: "second_language",
     kind: "text",
     ask: "제2외국어가 있다면 알려주세요.",
     placeholder: "예: 프랑스어 B1, 없음",
     optional: true,
+  },
+  {
+    key: "target_field",
+    kind: "text",
+    ask: "관심 분야가 있나요? 적어주세요.",
+    placeholder: "예: 환경·기후, 개발협력, 인권",
+    optional: true,
+  },
+  {
+    key: "target_path",
+    kind: "single",
+    ask: "관심 있는 진출 경로가 있나요?",
+    opts: PATH_OPTIONS,
   },
   {
     key: "cert",
@@ -143,13 +182,17 @@ const ADVANCED_PROFILE: ProfileStep[] = [
     placeholder: "예: 정보처리기사, 없음",
     optional: true,
   },
-  {
-    key: "targetPath",
-    kind: "single",
-    ask: "관심 있는 진출 경로가 있나요?",
-    opts: PATH_OPTIONS,
-  },
 ];
+
+export function shouldSkipStep(
+  key: string,
+  profile: Partial<ProfileSummary>,
+): boolean {
+  if (key === "graduate_major") {
+    return profile.status !== "석사 재학" && profile.status !== "석사 이상";
+  }
+  return false;
+}
 
 // ===== 진단 문항 은행 (A/B 서로 다름) =====
 export type ChipOption = { t: string; tags?: string[] };
@@ -165,113 +208,77 @@ const INTEREST_QUIZ: QuizStep[] = [
     kind: "multi",
     max: 2,
     label: "눈이 가는 장면",
-    ask: "뉴스에서 보면 괜히 눈이 가는 장면은? (최대 2개)",
+    ask: "뉴스를 넘기다 나도 모르게 멈추는 장면은? (최대 2개)",
     opts: [
       { t: "녹아내리는 빙하와 사라지는 숲", tags: ["f:환경"] },
-      { t: "물을 길으러 걷는 아이", tags: ["f:개발"] },
-      { t: "국경에 선 난민 가족", tags: ["f:인권"] },
-      { t: "백신을 기다리는 줄", tags: ["f:보건"] },
-      { t: "무너진 학교를 다시 세우는 사람들", tags: ["f:교육"] },
-      { t: "작은 나라의 수출 막힘", tags: ["f:경제"] },
+      { t: "물 길으러 몇 시간 걷는 아이", tags: ["f:개발"] },
+      { t: "국경에 멈춰 선 난민 가족", tags: ["f:인권"] },
+      { t: "백신을 기다리는 긴 줄", tags: ["f:보건"] },
+      { t: "다시 세워지는 무너진 학교", tags: ["f:교육"] },
+      { t: "수출길이 막힌 작은 나라", tags: ["f:경제"] },
+      { t: "평화 협정에 서명하는 손", tags: ["f:평화"] },
+      { t: '"같은 일, 다른 임금" 팻말', tags: ["f:성평등"] },
     ],
   },
   {
     kind: "single",
-    label: "끌리는 퀘스트",
-    ask: "당신이 게임 속 캐릭터라면 더 끌리는 퀘스트는?",
-    opts: [
-      { t: "현장에 가서 바로 문제 해결하기" },
-      { t: "큰 회의장에서 세계 규칙 바꾸기" },
-    ],
+    label: "첫 배정지",
+    ask: "국제기구 세계에 입장! 첫 배정지를 고른다면?",
+    opts: [{ t: "문제의 현장 한복판 🏕️" }, { t: "세계가 모이는 회의장 🏛️" }],
   },
   {
     kind: "single",
     label: "세상을 바꾸는 순간",
-    ask: '"세상을 바꾼다"는 말이 제일 실감 나는 순간은?',
+    ask: "'세상을 바꾼다'는 말이 제일 실감 나는 순간은?",
     opts: [
       { t: "한 사람의 삶이 나아질 때" },
       { t: "법과 제도가 바뀔 때" },
       { t: "새로운 지식이 쌓일 때" },
-      { t: "나라들이 합의할 때" },
+      { t: "나라들이 손을 잡을 때" },
+    ],
+  },
+  {
+    kind: "single",
+    label: "팀에서의 나",
+    ask: "조별과제에서 당신은?",
+    opts: [
+      { t: "조용히 자료 파고들어 정리하는 쪽 📚" },
+      { t: "사람들 사이를 오가며 조율하는 쪽 🤝" },
+    ],
+  },
+  {
+    kind: "single",
+    label: "나의 사명",
+    ask: "둘 중 더 끌리는 사명은?",
+    opts: [
+      { t: "지금 당장 필요한 도움을 준다" },
+      { t: "앞으로 생길 문제를 미리 막는다" },
     ],
   },
   {
     kind: "multi",
     max: 2,
-    label: "끌리는 키워드",
-    ask: "이런 키워드 중 왠지 끌리는 건? (최대 2개)",
+    label: "신날 것 같은 일",
+    ask: "국제기구에서 해보면 은근 신날 것 같은 일은? (최대 2개)",
     opts: [
-      { t: "기후", tags: ["f:환경"] },
-      { t: "평화", tags: ["f:평화"] },
-      { t: "아동", tags: ["f:인권"] },
-      { t: "보건", tags: ["f:보건"] },
-      { t: "문화", tags: ["f:교육"] },
-      { t: "무역", tags: ["f:경제"] },
-      { t: "식량", tags: ["f:개발"] },
-      { t: "기술", tags: ["f:기술"] },
+      { t: "캠페인·콘텐츠 만들기 📣" },
+      { t: "데이터 파헤치기 📊" },
+      { t: "현장 프로젝트 뛰기 🏃" },
+      { t: "통·번역, 소통하기 🗣️" },
+      { t: "정책 아이디어 내기 💡" },
+      { t: "국제행사 꾸리기 🎪" },
     ],
   },
   {
     kind: "single",
-    label: "맡는 역할",
-    ask: "친구들이 당신에게 더 자주 맡기는 역할은?",
+    label: "솔직 토크",
+    ask: "솔직히, 국제기구에 끌리는 진짜 이유는? 🤔",
     opts: [
-      { t: "자료 찾고 정리하는 사람" },
-      { t: "사람들 의견 조율하는 사람" },
+      { t: "세상에 진짜 보탬이 되고 싶어서 🌱" },
+      { t: "넓은 무대에서 일해보고 싶어서 🌍" },
+      { t: "내 전문성을 제대로 살리고 싶어서 💪" },
+      { t: "그냥… 왠지 멋있어서 (ㅎㅎ) ✨" },
     ],
-  },
-  {
-    kind: "single",
-    label: "멋있는 일터",
-    ask: "일하는 모습을 상상하면 더 멋있어 보이는 곳은?",
-    opts: [
-      { t: "재난 현장" },
-      { t: "국제회의장" },
-      { t: "연구실" },
-      { t: "공항과 출장길" },
-      { t: "온라인 상황실" },
-    ],
-  },
-  {
-    kind: "single",
-    label: "마음이 가는 말",
-    ask: "더 마음이 가는 말은?",
-    opts: [
-      { t: "지금 필요한 도움을 준다" },
-      { t: "앞으로 반복될 문제를 막는다" },
-    ],
-  },
-  {
-    kind: "single",
-    label: "알아보는 방식",
-    ask: "새로운 분야를 알아볼 때 나는 보통?",
-    opts: [
-      { t: "짧은 카드뉴스부터 본다" },
-      { t: "유튜브나 영상부터 본다" },
-      { t: "챗봇에 물어본다" },
-      { t: "공식 사이트를 파본다" },
-    ],
-  },
-  {
-    kind: "multi",
-    max: 2,
-    label: "재미있을 일",
-    ask: "국제기구에서 해본다면 은근 재미있을 것 같은 일은? (최대 2개)",
-    opts: [
-      { t: "캠페인 만들기" },
-      { t: "데이터 분석하기" },
-      { t: "현장 프로젝트 운영" },
-      { t: "번역·커뮤니케이션" },
-      { t: "정책 제안" },
-      { t: "국제행사 준비" },
-    ],
-  },
-  {
-    kind: "text",
-    label: "한마디",
-    ask: '"국제기구" 하면 떠오르는 이미지나 궁금한 점을 한 줄로 적어주세요. (선택)',
-    placeholder: "예: UN은 정확히 무슨 일을 해요? / 환경 쪽이 궁금해요",
-    optional: true,
   },
 ];
 
@@ -280,7 +287,7 @@ const ADVANCED_QUIZ: QuizStep[] = [
     kind: "multi",
     max: 2,
     label: "관심 이슈",
-    ask: "현재 가장 명확하게 관심 있는 국제 이슈는? (최대 2개)",
+    ask: "요즘 마음이 가는 국제 이슈는? (최대 2개)",
     opts: [
       { t: "기후·환경", tags: ["f:환경"] },
       { t: "개발협력·빈곤", tags: ["f:개발"] },
@@ -296,100 +303,78 @@ const ADVANCED_QUIZ: QuizStep[] = [
   },
   {
     kind: "single",
-    label: "커리어 서사",
-    ask: "본인의 커리어 서사에 더 가까운 방향은?",
+    label: "상상 속 근무 무대",
+    ask: "상상해보면, 일하고 싶은 무대는?",
     opts: [
-      { t: "특정 현장·대상 문제를 깊게 해결" },
-      { t: "제도·정책·국제규범을 설계" },
+      { t: "유럽의 국제도시 (제네바·빈 등) 🏛️" },
+      { t: "뉴욕 UN 본부 🗽" },
+      { t: "아시아·태평양 지역 🌏" },
+      { t: "개발 현장 (아프리카·중남미 등) 🌍" },
+      { t: "어디든 세계를 누비면 OK ✈️" },
     ],
   },
   {
     kind: "single",
-    label: "지원서 강점",
-    ask: "지원서에서 가장 강점으로 내세울 수 있는 역량은?",
+    label: "조직 취향",
+    ask: "왠지 더 끌리는 조직 스타일은?",
     opts: [
-      { t: "리서치·문서작성" },
-      { t: "데이터 분석" },
-      { t: "프로젝트 운영" },
-      { t: "이해관계자 조율" },
-      { t: "커뮤니케이션·홍보" },
-      { t: "법·정책 해석" },
+      { t: "UNDP·UNICEF처럼 넓게 다루는 대형 종합기구" },
+      { t: "ILO·WIPO·IMO처럼 한 분야에 딥한 전문기구" },
+    ],
+  },
+  {
+    kind: "single",
+    label: "커리어를 한 장면으로",
+    ask: "당신의 커리어를 한 장면으로 그린다면?",
+    opts: [
+      { t: "문제의 현장에서 직접 뛰는 나 🏕️" },
+      { t: "제도·규범을 설계하는 회의장의 나 🏛️" },
     ],
   },
   {
     kind: "multi",
     max: 2,
-    label: "진출 경로",
-    ask: "관심 있는 진출 경로는? (최대 2개)",
+    label: "진입 경로",
+    ask: "국제기구 진입, 어떤 경로가 끌려요? (최대 2개)",
     opts: [
       { t: "인턴십" },
       { t: "JPO" },
-      { t: "UNV" },
       { t: "YPP" },
+      { t: "UNV" },
       { t: "컨설턴트" },
       { t: "NGO·개발협력 경유" },
-      { t: "아직 모르겠다" },
+      { t: "아직 탐색 중" },
     ],
   },
   {
     kind: "single",
-    label: "공고 선택 기준",
-    ask: "공고를 고를 때 더 중요한 기준은?",
+    label: "프로젝트 첫 무브",
+    ask: "새 프로젝트 배정 첫 주, 당신의 첫 무브는?",
     opts: [
-      { t: "내 관심 분야와의 적합성" },
-      { t: "내가 실제로 지원 가능한 자격요건" },
+      { t: "자료·선행연구부터 파고든다 📚" },
+      { t: "데이터 모아 현황 진단 📊" },
+      { t: "이해관계자부터 만나 조율 🤝" },
+      { t: "실행계획·일정 세팅 🗂️" },
+      { t: "메시지·보고라인 정리 📣" },
+      { t: "관련 규범·정책 검토 ⚖️" },
     ],
   },
   {
     kind: "single",
-    label: "현재 병목",
-    ask: "현재 국제기구 지원에서 가장 막히는 부분은?",
+    label: "이루고 싶은 것",
+    ask: "국제기구에서 일한다면, 가장 이루고 싶은 건?",
     opts: [
-      { t: "어떤 기구가 맞는지 모름" },
-      { t: "공고 찾기 번거로움" },
-      { t: "자격요건 해석 어려움" },
-      { t: "경력 부족" },
-      { t: "언어 부담" },
-      { t: "지원서 작성 부담" },
-    ],
-  },
-  {
-    kind: "single",
-    label: "선호 조직 유형",
-    ask: "선호하는 조직 유형은?",
-    opts: [
-      { t: "UNDP·UNICEF처럼 넓은 의제를 다루는 대형 기구" },
-      { t: "ILO·WIPO·IMO처럼 분야가 뚜렷한 전문 기구" },
-    ],
-  },
-  {
-    kind: "single",
-    label: "영어 업무 수준",
-    ask: "영어 업무 수행 수준은 어디에 가까운가요?",
-    opts: [
-      ...ENGLISH_OPTIONS.map((t) => ({ t })),
-      { t: "영어보다 제2외국어가 강점" },
-    ],
-  },
-  {
-    kind: "multi",
-    max: 2,
-    label: "받고 싶은 정보",
-    ask: "맞춤 정보로 받고 싶은 것은? (최대 2개)",
-    opts: [
-      { t: "내 분야 공고" },
-      { t: "관심 기구 새 공고" },
-      { t: "국제 뉴스·정세" },
-      { t: "지원자격 체크" },
-      { t: "유사 기구 추천" },
-      { t: "필요한 역량 요약" },
+      { t: "현장에서 사람들의 삶을 직접 바꾸기" },
+      { t: "정책·제도로 근본 원인 해결하기" },
+      { t: "전문 분야에서 최고 전문가 되기" },
+      { t: "국가·기관 사이를 잇는 가교 되기" },
     ],
   },
   {
     kind: "text",
     label: "목표와 고민",
-    ask: "마음에 둔 기구·직무·분야 또는 현재 고민을 적어주세요. (선택)",
-    placeholder: "예: UNEP 환경정책 인턴 관심, JPO 자격이 되는지 궁금해요",
+    ask: "마음에 둔 기구·직무·분야 등을 자유롭게 적어주세요. (선택)",
+    placeholder: "예) UNEP 환경정책 인턴에 관심 있어요.",
     optional: true,
   },
 ];
@@ -423,13 +408,19 @@ export function flowFor(track: CompassTrack): CompassFlow {
 
 // ===== 프로필 라벨 (결과 칩·프로필 텍스트 공용) =====
 export const PROFILE_LABELS: Record<ProfileStepKey, string> = {
+  nickname: "닉네임",
   status: "현재 상태",
-  major: "전공/관심",
-  english: "영어 수준",
-  experience: "관련 경력",
-  second: "제2외국어",
+  familiarity: "국제기구 친숙도",
+  interest_hint: "전공 또는 요즘 관심사",
+  bachelor_major: "학사 전공",
+  graduate_major: "석사 전공",
+  graduation_timing: "졸업 또는 졸업예정 시기",
+  experience_years: "관련 경력",
+  english_level: "영어 업무 수행 수준",
+  second_language: "제2외국어",
+  target_field: "관심 분야",
+  target_path: "관심 진출 경로",
   cert: "자격증",
-  targetPath: "진출 경로",
 };
 
 // ===== 백엔드 전송용 프로필 텍스트 빌드 =====
@@ -441,7 +432,7 @@ export function buildProfile(
   const flow = FLOWS[track];
 
   const profileLines: string[] = [];
-  if (profile.nick) profileLines.push(`- 닉네임: ${profile.nick}`);
+  if (profile.nickname) profileLines.push(`- 닉네임: ${profile.nickname}`);
   flow.profile.forEach((step) => {
     const v = profile[step.key];
     if (v && v.trim()) {

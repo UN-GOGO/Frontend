@@ -9,19 +9,16 @@ import {
   BRANCH,
   EMPTY_PROFILE,
   flowFor,
+  shouldSkipStep,
   type ProfileStep,
 } from "@/lib/compass/flows";
 import { loadCompassProfile } from "@/lib/compass/profile-store";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import type { CompassTrack, ProfileSummary } from "@/lib/compass/types";
 import { cn } from "@/lib/utils";
 
 // 프로필 입력을 마친 뒤 한 번 묻는 "마이페이지 저장" 단계
-const SAVE_ASK =
-  "여기까지 입력한 정보를 마이페이지에 저장할까요? 저장해두면 다음엔 다시 안 적어도 돼요. (로그인 시)";
-const SAVE_OPTS: { t: string; value: boolean }[] = [
-  { t: "네, 저장할게요", value: true },
-  { t: "아니요, 이번만 볼게요", value: false },
-];
 
 // 트랙 선택 직후, 저장된 프로필이 있을 때 한 번 묻는 "불러오기" 단계
 const LOAD_ASK =
@@ -47,26 +44,28 @@ type Pending =
 // 정보입력(branch→profile→save)이 끝나면 onFinish로 넘겨 퀴즈 화면으로 전환한다.
 export function Conversation({
   onFinish,
-  onExit,
 }: {
   onFinish: (
     profile: ProfileSummary,
     track: CompassTrack,
     saveToMypage: boolean,
   ) => void;
-  onExit: () => void;
 }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   // 수정 중인 턴 인덱스(null = 새 답변 입력 모드)
   const [editing, setEditing] = useState<number | null>(null);
 
-  // ── 재방문자: 저장된 정본 프로필 불러오기 ──
-  // 트랙 선택(branch) 직후, 저장 프로필이 있으면 "정보를 불러올까요?"를 한 번 묻는다.
+  // ── 로그인 유저 확인 및 재방문자 저장된 정본 프로필 불러오기 ──
+  const [user, setUser] = useState<User | null>(null);
   const [savedProfile, setSavedProfile] = useState<ProfileSummary | null>(null);
   const [loadAsked, setLoadAsked] = useState(false);
 
   useEffect(() => {
     let alive = true;
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (alive) setUser(user);
+    });
     loadCompassProfile().then((p) => {
       if (alive) setSavedProfile(p && p.track ? p : null);
     });
@@ -75,24 +74,92 @@ export function Conversation({
     };
   }, []);
 
+  const saveAskText = user
+    ? "여기까지 입력한 정보를 마이페이지에 저장할까요? 저장해두면 다음엔 다시 안 적어도 돼요."
+    : "여기까지 입력한 정보를 마이페이지에 저장해둘까요? 저장해두면 다음엔 다시 안 적어도 돼요. 저장하려면 로그인이 필요해요.";
+
+  const saveOptions = useMemo(() => {
+    return user
+      ? [
+          { t: "네, 저장할게요", value: true },
+          { t: "아니요, 이번만 볼게요", value: false },
+        ]
+      : [
+          { t: "로그인하고 저장하기", value: true },
+          { t: "로그인 없이 결과 보기", value: false },
+        ];
+  }, [user]);
+
   const track = turns[0]?.phase === "branch" ? turns[0].track : null;
   const flow = track ? flowFor(track) : null;
 
   // 대기 중인 다음 스텝 계산 (branch → profile[…] → save)
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const pending = useMemo<Pending>(() => {
     if (turns.length === 0) return { kind: "branch" };
     if (!flow) return null;
-    const p = flow.profile.length;
-    const after = turns.length - 1; // branch 제외
-    if (after < p)
-      return { kind: "profile", idx: after, step: flow.profile[after] };
-    if (after === p) return { kind: "save" };
-    return null;
-  }, [turns.length, flow]);
 
-  const totalSteps = flow ? flow.profile.length : 0;
-  // 진행률은 실제 정보입력 질문(프로필)만 카운트 — branch·save 단계는 제외
-  const doneSteps = turns.filter((t) => t.phase === "profile").length;
+    // 현재까지 입력된 프로필 정보 수집
+    const currentProfile: ProfileSummary = {
+      ...EMPTY_PROFILE,
+      track: track || "",
+    };
+    turns.forEach((t) => {
+      if (t.phase === "profile") {
+        const step = flow.profile[t.idx];
+        if (step) currentProfile[step.key] = t.value;
+      }
+    });
+
+    // 아직 답하지 않은 첫 번째 유효한 프로필 스텝 찾기
+    for (let i = 0; i < flow.profile.length; i++) {
+      const step = flow.profile[i];
+      const alreadyAnswered = turns.some(
+        (t) => t.phase === "profile" && t.idx === i,
+      );
+      if (alreadyAnswered) continue;
+
+      // 스킵해야 하는 경우 건너뜀
+      if (shouldSkipStep(step.key, currentProfile)) {
+        continue;
+      }
+
+      return { kind: "profile", idx: i, step };
+    }
+
+    // 모든 프로필 스텝 완료/스킵 시 save 질문
+    const hasSave = turns.some((t) => t.phase === "save");
+    if (!hasSave) return { kind: "save" };
+
+    return null;
+  }, [turns, flow, track]);
+
+  // 유효한(스킵되지 않은) 전체 스텝 수 및 현재 스텝 인덱스 계산
+  const { activeSteps, currentStepIndex } = useMemo(() => {
+    if (!flow) return { activeSteps: 0, currentStepIndex: 0 };
+
+    // 현재까지 입력된 프로필 정보 수집
+    const currentProfile: ProfileSummary = {
+      ...EMPTY_PROFILE,
+      track: track || "",
+    };
+    turns.forEach((t) => {
+      if (t.phase === "profile") {
+        const step = flow.profile[t.idx];
+        if (step) currentProfile[step.key] = t.value;
+      }
+    });
+
+    const active = flow.profile.filter(
+      (step) => !shouldSkipStep(step.key, currentProfile),
+    );
+    let currentIndex = active.length;
+    if (pending?.kind === "profile") {
+      currentIndex = active.findIndex((step) => step.key === pending.step.key);
+      if (currentIndex === -1) currentIndex = active.length;
+    }
+    return { activeSteps: active.length, currentStepIndex: currentIndex };
+  }, [flow, pending, turns, track]);
 
   const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -118,16 +185,19 @@ export function Conversation({
     const profile: ProfileSummary = { ...EMPTY_PROFILE, track: tk };
     let saveToMypage = false;
     all.forEach((t) => {
-      if (t.phase === "profile") profile[f.profile[t.idx].key] = t.value;
-      else if (t.phase === "save") saveToMypage = t.value;
+      if (t.phase === "profile") {
+        const step = f.profile[t.idx];
+        if (step && !shouldSkipStep(step.key, profile)) {
+          profile[step.key] = t.value;
+        }
+      } else if (t.phase === "save") saveToMypage = t.value;
     });
     return { profile, saveToMypage };
   };
 
   const maybeFinish = (all: Turn[], tk: CompassTrack) => {
-    const f = flowFor(tk);
-    // branch(1) + profile + save(1) → 정보입력 완료 시 퀴즈로 전환
-    if (all.length === 1 + f.profile.length + 1) {
+    const hasSave = all.some((t) => t.phase === "save");
+    if (hasSave) {
       const { profile, saveToMypage } = collect(all, tk);
       onFinish(profile, tk, saveToMypage);
     }
@@ -193,6 +263,24 @@ export function Conversation({
   const answerSave = (value: boolean, display: string) => {
     if (!flow) return;
     if (editing != null) {
+      if (!user && value) {
+        if (track) {
+          const tempTurns = turns.slice();
+          tempTurns[editing] = { phase: "save", value, display };
+          const { profile } = collect(tempTurns, track);
+          try {
+            sessionStorage.setItem(
+              "iogo_pending_compass_profile",
+              JSON.stringify({ profile, track }),
+            );
+          } catch (e) {
+            console.error("Failed to save pending profile", e);
+          }
+          window.location.href = `/login?next=${encodeURIComponent("/compass")}`;
+        }
+        return;
+      }
+
       setTurns((prev) => {
         const next = prev.slice();
         const t = next[editing];
@@ -200,10 +288,31 @@ export function Conversation({
         return next;
       });
       setEditing(null);
+
+      const nextTurns = turns.slice();
+      nextTurns[editing] = { phase: "save", value, display };
+      if (track) maybeFinish(nextTurns, track);
       return;
     }
     if (pending?.kind !== "save") return;
     const next: Turn[] = [...turns, { phase: "save", value, display }];
+
+    if (!user && value) {
+      if (track) {
+        const { profile } = collect(next, track);
+        try {
+          sessionStorage.setItem(
+            "iogo_pending_compass_profile",
+            JSON.stringify({ profile, track }),
+          );
+        } catch (e) {
+          console.error("Failed to save pending profile", e);
+        }
+        window.location.href = `/login?next=${encodeURIComponent("/compass")}`;
+      }
+      return;
+    }
+
     setTurns(next);
     if (track) maybeFinish(next, track);
   };
@@ -211,10 +320,32 @@ export function Conversation({
   // 턴의 질문 텍스트
   const askOf = (t: Turn): string => {
     if (t.phase === "branch") return BRANCH.ask;
-    if (t.phase === "save") return SAVE_ASK;
+    if (t.phase === "save") return saveAskText;
     if (!flow) return "";
     return flow.profile[t.idx].ask;
   };
+
+  // 유효한(스킵되지 않은) turns만 필터링
+  const activeTurns = useMemo(() => {
+    const currentProfileMap: Partial<ProfileSummary> = {};
+    const result: { turn: Turn; originalIndex: number }[] = [];
+
+    turns.forEach((t, i) => {
+      if (t.phase === "branch") {
+        result.push({ turn: t, originalIndex: i });
+      } else if (t.phase === "profile") {
+        if (!flow) return;
+        const step = flow.profile[t.idx];
+        if (step && !shouldSkipStep(step.key, currentProfileMap)) {
+          currentProfileMap[step.key] = t.value;
+          result.push({ turn: t, originalIndex: i });
+        }
+      } else if (t.phase === "save") {
+        result.push({ turn: t, originalIndex: i });
+      }
+    });
+    return result;
+  }, [turns, flow]);
 
   // 트랙 선택 직후, 저장 프로필이 있으면 "불러올까요?"를 먼저 묻는다.
   const askLoad =
@@ -239,8 +370,12 @@ export function Conversation({
             </span>
             {flow && (
               <span className="text-muted-foreground tabular-nums">
-                {Math.min(doneSteps + (pending ? 1 : 0), totalSteps)} /{" "}
-                {totalSteps}
+                {Math.min(
+                  currentStepIndex +
+                    (pending && pending.kind === "profile" ? 1 : 0),
+                  activeSteps,
+                )}{" "}
+                / {activeSteps}
               </span>
             )}
           </div>
@@ -248,7 +383,7 @@ export function Conversation({
             <div
               className="bg-point h-full rounded-full transition-all duration-300"
               style={{
-                width: `${totalSteps ? (doneSteps / totalSteps) * 100 : 4}%`,
+                width: `${activeSteps ? (currentStepIndex / activeSteps) * 100 : 4}%`,
               }}
             />
           </div>
@@ -287,7 +422,7 @@ export function Conversation({
                 {/* 첫 인사 */}
                 <BotBubble text={BRANCH.ask} />
 
-                {turns.map((t, i) => {
+                {activeTurns.map(({ turn: t, originalIndex: i }) => {
                   if (t.phase === "branch") {
                     // 첫 질문의 답
                     return editing === 0 ? (
@@ -320,6 +455,7 @@ export function Conversation({
                           />
                         ) : t.phase === "save" ? (
                           <SaveInput
+                            options={saveOptions}
                             initial={t.value}
                             editing
                             onAnswer={answerSave}
@@ -345,7 +481,7 @@ export function Conversation({
                   pending.kind !== "branch" && (
                     <BotBubble
                       text={
-                        pending.kind === "save" ? SAVE_ASK : pending.step.ask
+                        pending.kind === "save" ? saveAskText : pending.step.ask
                       }
                     />
                   )
@@ -373,7 +509,9 @@ export function Conversation({
                   onAnswer={answerProfile}
                 />
               )}
-              {pending.kind === "save" && <SaveInput onAnswer={answerSave} />}
+              {pending.kind === "save" && (
+                <SaveInput options={saveOptions} onAnswer={answerSave} />
+              )}
             </div>
           )}
 
@@ -383,14 +521,6 @@ export function Conversation({
             </p>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={onExit}
-          className="text-muted-foreground hover:text-foreground mt-3 text-xs font-semibold"
-        >
-          ← 그만두기
-        </button>
       </div>
     </div>
   );
@@ -420,9 +550,9 @@ function LoadInput({
 function BotBubble({ text }: { text: string }) {
   return (
     <div className="flex animate-[pol-up_0.3s_ease] items-end gap-2">
-      <span className="bg-point-soft relative size-9 shrink-0 overflow-hidden rounded-full">
+      <span className="bg-point-soft relative size-12 shrink-0 overflow-hidden rounded-full">
         <Image
-          src="/compass_profile.png"
+          src="/mascot_default.png"
           alt="I-OGO 나침반"
           fill
           sizes="36px"
@@ -512,11 +642,13 @@ function BranchInput({
 }
 
 function SaveInput({
+  options,
   initial,
   editing,
   onAnswer,
   onCancel,
 }: {
+  options: { t: string; value: boolean }[];
   initial?: boolean;
   editing?: boolean;
   onAnswer: (value: boolean, display: string) => void;
@@ -525,7 +657,7 @@ function SaveInput({
   return (
     <div>
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {SAVE_OPTS.map((o) => (
+        {options.map((o) => (
           <button
             key={o.t}
             type="button"
@@ -607,23 +739,25 @@ function ProfileInput({
         />
         <Button
           onClick={submit}
-          className="bg-point hover:bg-point-hover h-auto shrink-0 rounded-xl px-5 font-semibold"
+          className="bg-point hover:bg-point-hover h-auto shrink-0 rounded-xl px-5 font-semibold text-white"
         >
           확인
         </Button>
-      </div>
-      <div className="flex items-center gap-3">
         {step.optional && (
-          <button
+          <Button
             type="button"
             onClick={() => onAnswer("", "건너뛰기")}
-            className="text-muted-foreground hover:text-foreground text-xs font-semibold"
+            className="border-point text-point hover:bg-point/5 hover:text-point h-auto shrink-0 rounded-xl border-[1.5px] bg-white px-5 font-semibold"
           >
             건너뛰기
-          </button>
+          </Button>
         )}
-        {editing && onCancel && <CancelEdit onCancel={onCancel} />}
       </div>
+      {editing && onCancel && (
+        <div className="flex items-center gap-3">
+          <CancelEdit onCancel={onCancel} />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Conversation } from "./conversation";
-import { Quiz } from "./quiz";
+import { QuizPage } from "./quiz-page";
 import { Result } from "./result";
 import { buildProfile, EMPTY_PROFILE } from "@/lib/compass/flows";
+import { saveCompassProfile } from "@/lib/compass/profile-store";
 import { getRecommendation } from "@/lib/compass/recommend";
 import { saveCompassResult } from "@/lib/compass/save";
 import type {
@@ -14,6 +15,7 @@ import type {
   ProfileSummary,
   RecommendResponse,
 } from "@/lib/compass/types";
+import { createClient } from "@/lib/supabase/client";
 
 // 나침반 흐름: 정보입력(대화형) → 진단 퀴즈(스텝 카드형) → 결과
 type Phase = "conversation" | "quiz" | "result";
@@ -25,6 +27,41 @@ export function CompassFlow() {
     useState<ProfileSummary>(EMPTY_PROFILE);
   const [track, setTrack] = useState<CompassTrack | null>(null);
   const [saveToMypage, setSaveToMypage] = useState(false);
+
+  useEffect(() => {
+    const restorePendingProfile = async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const pending = sessionStorage.getItem("iogo_pending_compass_profile");
+      if (pending) {
+        try {
+          const { profile, track } = JSON.parse(pending) as {
+            profile: ProfileSummary;
+            track: CompassTrack;
+          };
+          if (profile && track) {
+            // 로그인 상태이므로, 마이페이지 프로필로 자동 업로드
+            await saveCompassProfile(profile);
+
+            // 상태 설정 후 퀴즈로 바로 진입
+            setProfileInput(profile);
+            setTrack(track);
+            setSaveToMypage(true);
+            setPhase("quiz");
+          }
+        } catch (e) {
+          console.error("Failed to parse pending compass profile", e);
+        } finally {
+          sessionStorage.removeItem("iogo_pending_compass_profile");
+        }
+      }
+    };
+    restorePendingProfile();
+  }, []);
 
   const [summary, setSummary] = useState<ProfileSummary>(EMPTY_PROFILE);
   const [data, setData] = useState<RecommendResponse | null>(null);
@@ -93,11 +130,9 @@ export function CompassFlow() {
 
   return (
     <div className="w-full">
-      {phase === "conversation" && (
-        <Conversation onFinish={startQuiz} onExit={reset} />
-      )}
+      {phase === "conversation" && <Conversation onFinish={startQuiz} />}
       {phase === "quiz" && track && (
-        <Quiz track={track} onFinish={finish} onExit={reset} />
+        <QuizPage track={track} onFinish={finish} onExit={reset} />
       )}
       {phase === "result" && (
         <Result

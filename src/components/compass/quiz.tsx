@@ -245,21 +245,21 @@ function TextStep({
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="flex items-center gap-3">
+        {step.optional && (
+          <Button
+            type="button"
+            onClick={() => onSubmit("")}
+            className="border-point text-point hover:bg-point/5 hover:text-point h-auto rounded-xl border-[1.5px] bg-white px-5 py-3 font-semibold"
+          >
+            건너뛰기
+          </Button>
+        )}
         <Button
           onClick={() => onSubmit(value.trim())}
-          className="bg-point hover:bg-point-hover h-auto flex-1 rounded-xl py-3 font-semibold"
+          className="bg-point hover:bg-point-hover h-auto flex-1 rounded-xl py-3 font-semibold text-white"
         >
           결과 보기 →
         </Button>
-        {step.optional && (
-          <button
-            type="button"
-            onClick={() => onSubmit("")}
-            className="text-muted-foreground hover:text-foreground text-xs font-semibold"
-          >
-            건너뛰기
-          </button>
-        )}
       </div>
     </div>
   );
