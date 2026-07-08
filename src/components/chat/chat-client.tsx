@@ -4,7 +4,6 @@ import { ArrowRight, ArrowUp, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { sendChat, sendChatStream, type ChatResponse } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 
@@ -25,7 +24,8 @@ const copy = {
   suggestLabel: "이렇게 물어보세요",
   placeholder: "예: 내 스펙으로 지원 가능한 데이터 공고 찾아줘",
   sourcesLabel: "참고한 자료",
-  inputHint: "AI가 생성한 답변은 부정확할 수 있어요. 중요한 정보는 원문 공고를 확인하세요.",
+  inputHint:
+    "AI가 생성한 답변은 부정확할 수 있어요. 중요한 정보는 원문 공고를 확인하세요.",
 } as const;
 
 const SUGGESTIONS = [
@@ -86,11 +86,7 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
           sources: res.sources,
         }));
         setSessionId(res.session_id);
-        setState("ok");
-        setError(null);
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
-        setState("error");
+      } catch {
         patchLastBot(() => ({ role: "bot", text: "(연결 실패)" }));
       } finally {
         setPending(false);
@@ -104,8 +100,6 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
       onDone: ({ session_id, sources }) => {
         setSessionId(session_id);
         patchLastBot((last) => ({ ...last, sources }));
-        setState("ok");
-        setError(null);
         setPending(false);
       },
       onError: () => void fallbackToNonStreaming(),
