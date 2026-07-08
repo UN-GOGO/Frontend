@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import type { MouseEvent, PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
+import { type ConnState } from "@/components/common/conn-badge";
 import { JobCard } from "@/components/jobs/job-card";
 import { JobCardSkeletonGrid } from "@/components/jobs/job-card-skeleton";
 import {
@@ -258,7 +258,6 @@ export function JobsClient() {
             외교부 공공데이터 기반 국제기구 공고
           </p>
         </div>
-        <ConnBadge state={state} error={error} />
       </div>
 
       {/* ── 섹션 A: 맞춤 공고 캐러셀 ── */}

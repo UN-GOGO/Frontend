@@ -10,7 +10,6 @@ import {
   Newspaper,
 } from "lucide-react";
 
-import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getProfile,
@@ -31,20 +30,7 @@ const STAT_COLORS = [
   "bg-rose-400",
 ];
 
-function StatCard({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="border-border bg-background min-w-[92px] rounded-xl border px-4 py-3 text-center">
-      <div className="text-primary text-2xl leading-none font-extrabold tabular-nums">
-        {value}
-      </div>
-      <div className="text-muted-foreground mt-1.5 text-[11px]">{label}</div>
-    </div>
-  );
-}
-
 export function MypageClient({ name, email }: { name: string; email: string }) {
-  const [state, setState] = useState<ConnState>("loading");
-  const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   // 통계 전용 로딩/에러 — 프로필 응답이 늦어도 "내 관심사 통계"는
@@ -80,11 +66,8 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
           });
 
         await Promise.allSettled([profilePromise, statsPromise]);
-        setState("ok");
-      } catch (e: unknown) {
+      } catch {
         if (ctrl.signal.aborted) return;
-        setError(e instanceof Error ? e.message : String(e));
-        setState("error");
       }
     })();
     return () => ctrl.abort();
@@ -96,9 +79,6 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
     [profile?.major, profile?.education].filter(Boolean).join(" · ") ||
     email ||
     "프로필을 완성해 보세요.";
-
-  const totalActivities = stats && stats.has_data ? stats.total_activities : 0;
-  const keywordCount = stats && stats.has_data ? stats.top_keywords.length : 0;
 
   const { items: bookmarks } = useBookmarks();
   const savedJobs = bookmarks.filter((b) => b.kind === "job" && b.data);
@@ -115,7 +95,6 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
             프로필·알림·설정과 내 활동을 한곳에서 관리합니다.
           </p>
         </div>
-        <ConnBadge state={state} error={error} />
       </div>
 
       {/* Profile header card */}
@@ -128,10 +107,6 @@ export function MypageClient({ name, email }: { name: string; email: string }) {
             {displayName}
           </div>
           <div className="text-muted-foreground mt-0.5 text-sm">{subline}</div>
-        </div>
-        <div className="flex gap-3">
-          <StatCard value={String(totalActivities)} label="총 활동" />
-          <StatCard value={String(keywordCount)} label="관심 키워드" />
         </div>
         <Link
           href="/profile"

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LogIn, User, UserPlus, type LucideIcon } from "lucide-react";
 
@@ -123,28 +122,6 @@ export function Sidebar({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
           )}
         </div>
       </nav>
-
-      {/* 안내 마스코트 — 홈 화면에서만 노출, 사이드바 하단에 오버레이 */}
-      {collapsed && (
-        <Link
-          href="/compass"
-          aria-label="나침반 진단 시작"
-          className="group absolute bottom-0 left-4 z-50 flex w-max items-end gap-2"
-        >
-          <span className="pointer-events-none relative block h-[248px] w-[200px] shrink-0 transition-transform">
-            <Image
-              src="/mascot_left.png"
-              alt="I-OGO 안내 캐릭터"
-              fill
-              sizes="200px"
-              className="pointer-events-auto object-contain object-bottom drop-shadow-lg"
-            />
-          </span>
-          <span className="bg-primary mb-6 rounded-lg px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-white shadow-lg">
-            나에게 딱 맞는 국제기구 찾기 ✨
-          </span>
-        </Link>
-      )}
     </div>
   );
 }
