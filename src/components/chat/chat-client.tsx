@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUp, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { sendChat, type ChatResponse } from "@/lib/api/iogo";
+import { sendChat, sendChatStream, type ChatResponse } from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 
 type Msg = {
@@ -25,7 +25,7 @@ const copy = {
   placeholder: "예: 내 스펙으로 지원 가능한 데이터 공고 찾아줘",
   sourcesLabel: "참고한 자료",
   inputHint:
-    "취준봇은 실시간 데이터를 바탕으로 답변하며, AI 답변은 오차가 발생할 수 있습니다.",
+    "AI가 생성한 답변은 부정확할 수 있어요. 중요한 정보는 원문 공고를 확인하세요.",
 } as const;
 
 const SUGGESTIONS = [
@@ -61,18 +61,49 @@ export function ChatClient({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
     setInput("");
     setMsgs((m) => [...m, { role: "user", text }]);
     setPending(true);
-    try {
-      const res = await sendChat(text, userIdRef.current, sessionId);
-      setSessionId(res.session_id);
-      setMsgs((m) => [
-        ...m,
-        { role: "bot", text: res.reply, sources: res.sources },
-      ]);
-    } catch {
-      setMsgs((m) => [...m, { role: "bot", text: "(연결 실패)" }]);
-    } finally {
-      setPending(false);
-    }
+
+    // 스트리밍용 빈 봇 말풍선을 먼저 추가 (토큰 도착마다 채워진다)
+    setMsgs((m) => [...m, { role: "bot", text: "" }]);
+
+    const patchLastBot = (patch: (last: Msg) => Msg) => {
+      setMsgs((m) => {
+        const next = [...m];
+        const last = next[next.length - 1];
+        if (last?.role === "bot") {
+          next[next.length - 1] = patch(last);
+        }
+        return next;
+      });
+    };
+
+    const fallbackToNonStreaming = async () => {
+      // 스트리밍 실패 시 기존 논스트리밍으로 재시도
+      try {
+        const res = await sendChat(text, userIdRef.current, sessionId);
+        patchLastBot(() => ({
+          role: "bot",
+          text: res.reply,
+          sources: res.sources,
+        }));
+        setSessionId(res.session_id);
+      } catch {
+        patchLastBot(() => ({ role: "bot", text: "(연결 실패)" }));
+      } finally {
+        setPending(false);
+      }
+    };
+
+    await sendChatStream(text, userIdRef.current, sessionId, {
+      onDelta: (delta) => {
+        patchLastBot((last) => ({ ...last, text: last.text + delta }));
+      },
+      onDone: ({ session_id, sources }) => {
+        setSessionId(session_id);
+        patchLastBot((last) => ({ ...last, sources }));
+        setPending(false);
+      },
+      onError: () => void fallbackToNonStreaming(),
+    });
   };
 
   const isEmpty = msgs.length === 0;

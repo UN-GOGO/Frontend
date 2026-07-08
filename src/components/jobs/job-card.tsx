@@ -4,18 +4,24 @@ import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
 import { BookmarkButton } from "@/components/bookmarks/bookmark-button";
-import { type Opportunity } from "@/lib/api/iogo";
+import {
+  normalizeOpportunitySourceUrl,
+  type Opportunity,
+} from "@/lib/api/iogo";
 import { ddayChip, fitBadge, orgAbbrev } from "@/lib/opportunity";
 import { cn } from "@/lib/utils";
 
 /** 공고 목록·저장됨 화면에서 공유하는 공고 카드. */
 export function JobCard({ job: o }: { job: Opportunity }) {
   if (!o) return null;
-  const fit = o.score != null ? fitBadge(o.score) : null;
+  const displayScore = o.match_score ?? o.score;
+  const fit =
+    displayScore != null && displayScore > 0 ? fitBadge(displayScore) : null;
   const dday = ddayChip(o.deadline);
+  const applyUrl = normalizeOpportunitySourceUrl(o.source_url);
 
   return (
-    <div className="bg-card border-border hover:border-point-border relative flex flex-col gap-3 rounded-2xl border p-[18px] transition-[box-shadow,border-color] hover:shadow-[0_8px_24px_rgba(31,58,138,0.08)]">
+    <div className="bg-card border-border hover:border-point-border relative flex h-[286px] flex-col gap-3 rounded-2xl border p-[18px] transition-[box-shadow,border-color] hover:shadow-[0_8px_24px_rgba(31,58,138,0.08)]">
       {/* 카드 전체를 덮는 상세 링크 (stretched link) */}
       <Link href={`/jobs/${o.id}`} className="absolute inset-0 z-0 rounded-2xl">
         <span className="sr-only">{o.title} 상세 보기</span>
@@ -45,8 +51,8 @@ export function JobCard({ job: o }: { job: Opportunity }) {
       </div>
 
       {/* title + type tag */}
-      <div>
-        <div className="text-foreground text-base leading-snug font-extrabold tracking-tight">
+      <div className="min-h-[76px]">
+        <div className="text-foreground line-clamp-2 min-h-[44px] text-base leading-snug font-extrabold tracking-tight">
           {o.title}
         </div>
         {o.type && (
@@ -58,15 +64,13 @@ export function JobCard({ job: o }: { job: Opportunity }) {
         )}
       </div>
 
-      {o.description && (
-        <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-600">
-          {o.description}
-        </p>
-      )}
+      <p className="line-clamp-2 min-h-[42px] text-[13px] leading-relaxed text-slate-600">
+        {o.description || ""}
+      </p>
 
       {/* footer */}
-      <div className="border-secondary mt-auto flex items-center justify-between gap-2.5 border-t pt-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="border-secondary mt-auto flex min-h-[44px] items-center justify-between gap-2.5 border-t pt-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {fit && (
             <span
               className={cn(
@@ -89,7 +93,7 @@ export function JobCard({ job: o }: { job: Opportunity }) {
           )}
         </div>
         <a
-          href={o.source_url}
+          href={applyUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary border-border hover:border-point hover:text-point-hover relative z-10 inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors"

@@ -6,7 +6,12 @@ import { useEffect, useState } from "react";
 
 import { BookmarkButton } from "@/components/bookmarks/bookmark-button";
 import { JobDetailSkeleton } from "@/components/jobs/job-detail-skeleton";
-import { getOpportunity, logClick, type Opportunity } from "@/lib/api/iogo";
+import {
+  getOpportunity,
+  logClick,
+  normalizeOpportunitySourceUrl,
+  type Opportunity,
+} from "@/lib/api/iogo";
 import { getUserId } from "@/lib/api/user";
 import { ddayChip, fitBadge, orgAbbrev } from "@/lib/opportunity";
 import { cn } from "@/lib/utils";
@@ -41,6 +46,7 @@ export function JobDetailClient({ id }: { id: string }) {
 
   const fit = job?.score != null ? fitBadge(job.score) : null;
   const dday = ddayChip(job?.deadline);
+  const applyUrl = job ? normalizeOpportunitySourceUrl(job.source_url) : "";
 
   return (
     <div className="mx-auto w-full max-w-[760px] px-6 py-7">
@@ -138,7 +144,7 @@ export function JobDetailClient({ id }: { id: string }) {
 
           {/* apply */}
           <a
-            href={job.source_url}
+            href={applyUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-primary hover:bg-primary/85 mt-6 inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold text-white transition-colors"

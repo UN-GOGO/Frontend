@@ -69,7 +69,7 @@ export type Recommendation = {
   abbr: string;
   org: string;
   field: string;
-  score: number;
+  score: number; // 백엔드 AI는 0~1, 오프라인 폴백은 0~100
   matched: string[];
   missing: string[];
   lang_tip?: string;

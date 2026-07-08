@@ -9,7 +9,11 @@
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
-import type { NewsArticle, Opportunity } from "@/lib/api/iogo";
+import {
+  normalizeOpportunity,
+  type NewsArticle,
+  type Opportunity,
+} from "@/lib/api/iogo";
 import { createClient } from "@/lib/supabase/client";
 
 export type BookmarkKind = "job" | "insight";
@@ -25,6 +29,14 @@ const EMPTY: BookmarkItem[] = [];
 const listeners = new Set<() => void>();
 let cache: BookmarkItem[] | null = null;
 
+function normalizeBookmarkItem(item: BookmarkItem): BookmarkItem {
+  if (item.kind !== "job") return item;
+  return {
+    ...item,
+    data: normalizeOpportunity(item.data),
+  };
+}
+
 function read(): BookmarkItem[] {
   if (cache) return cache;
   if (typeof window === "undefined") return EMPTY;
@@ -39,7 +51,9 @@ function read(): BookmarkItem[] {
         raw = legacy;
       }
     }
-    cache = raw ? (JSON.parse(raw) as BookmarkItem[]) : [];
+    cache = raw
+      ? (JSON.parse(raw) as BookmarkItem[]).map(normalizeBookmarkItem)
+      : [];
   } catch {
     cache = [];
   }
@@ -116,14 +130,13 @@ async function hydrate() {
       .order("created_at", { ascending: false });
     if (error || !data) return;
 
-    const serverItems = (data as BookmarkRow[]).map(
-      (r) =>
-        ({
-          id: r.item_id,
-          kind: r.kind,
-          savedAt: r.created_at ? new Date(r.created_at).getTime() : undefined,
-          data: r.data,
-        }) as BookmarkItem,
+    const serverItems = (data as BookmarkRow[]).map((r) =>
+      normalizeBookmarkItem({
+        id: r.item_id,
+        kind: r.kind,
+        savedAt: r.created_at ? new Date(r.created_at).getTime() : undefined,
+        data: r.data,
+      } as BookmarkItem),
     );
 
     // 로그인 전 localStorage에만 있던 항목 → DB로 이관
@@ -176,6 +189,7 @@ async function persistToggle(item: BookmarkItem, add: boolean) {
 }
 
 function toggleItem(item: BookmarkItem) {
+  item = normalizeBookmarkItem(item);
   const cur = read();
   const exists = cur.some((b) => b.id === item.id);
   // 1) 낙관적 업데이트(즉시 UI 반영 + localStorage)

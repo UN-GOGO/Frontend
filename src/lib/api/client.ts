@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
+export const BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
 
 // 백엔드가 응답 없이 오래 걸리는 경우(콜드 스타트·DB 지연 등) 화면이 무한 로딩으로
 // 보이지 않도록 기본 타임아웃을 둔다. 호출자가 넘긴 signal과 함께 먼저 온 쪽이 이긴다.

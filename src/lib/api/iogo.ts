@@ -1,7 +1,7 @@
 // un-gogo 백엔드(FastAPI) 엔드포인트 호출 레이어.
 // 계약은 backend/app/schemas.py · routers/*.py 와 1:1로 맞춘다.
 
-import { apiGet, apiPost, apiPut, type ApiInit } from "./client";
+import { apiGet, apiPost, apiPut, BASE_URL, type ApiInit } from "./client";
 
 // ===== 공고 (opportunities) =====
 export type Opportunity = {
@@ -14,7 +14,11 @@ export type Opportunity = {
   location?: string | null;
   source_url: string;
   score?: number | null;
+  match_score?: number | null;
+  match_reasons?: string[];
   fetched_at?: string | null;
+  /** 실제 공고 게시일 (requirements.posted_at 유래) */
+  posted_at?: string | null;
 };
 
 export type OpportunityFilters = {
@@ -23,6 +27,53 @@ export type OpportunityFilters = {
   deadline_after?: string;
   limit?: number;
 };
+
+const PUBLIC_DATA_VACANCY_PREFIX =
+  "https://apis.data.go.kr/1262000/IntrlInsttVacancyInfoService/";
+
+const PUBLIC_DATA_OPERATION_DETAIL_PATHS: Record<string, string> = {
+  getInternshipVacancyInfoList: "internship/notice_view.jsp",
+  getJpoVacancyInfoList: "jpo_ncre/jpo_ncre_notice_view.jsp",
+  getUnvVacancyInfoList: "unv/notice_view.jsp",
+  getInsttVacancyInfoList: "instt/notice_view.jsp",
+};
+
+export function normalizeOpportunitySourceUrl(sourceUrl: string): string {
+  const brokenJpoUrl = "https://unrecruit.mofa.go.kr/new/jpo/notice_view.jsp";
+  if (sourceUrl.startsWith(brokenJpoUrl)) {
+    try {
+      const url = new URL(sourceUrl);
+      const seq = url.searchParams.get("seq");
+      if (!seq) return sourceUrl;
+      return `https://unrecruit.mofa.go.kr/new/jpo_ncre/jpo_ncre_notice_view.jsp?seq=${seq}`;
+    } catch {
+      return sourceUrl;
+    }
+  }
+
+  if (!sourceUrl.startsWith(PUBLIC_DATA_VACANCY_PREFIX)) return sourceUrl;
+
+  try {
+    const url = new URL(sourceUrl);
+    const operation = url.pathname.split("/").filter(Boolean).at(-1);
+    const seq = url.searchParams.get("seq");
+    const detailPath = operation
+      ? PUBLIC_DATA_OPERATION_DETAIL_PATHS[operation]
+      : undefined;
+
+    if (!seq || !detailPath) return sourceUrl;
+    return `https://unrecruit.mofa.go.kr/new/${detailPath}?seq=${seq}`;
+  } catch {
+    return sourceUrl;
+  }
+}
+
+export function normalizeOpportunity(opportunity: Opportunity): Opportunity {
+  return {
+    ...opportunity,
+    source_url: normalizeOpportunitySourceUrl(opportunity.source_url),
+  };
+}
 
 export function getOpportunities(
   filters: OpportunityFilters = {},
@@ -34,14 +85,31 @@ export function getOpportunities(
   if (filters.deadline_after) p.set("deadline_after", filters.deadline_after);
   if (filters.limit) p.set("limit", String(filters.limit));
   const qs = p.toString();
-  return apiGet<Opportunity[]>(`/opportunities${qs ? `?${qs}` : ""}`, init);
+  return apiGet<Opportunity[]>(
+    `/opportunities${qs ? `?${qs}` : ""}`,
+    init,
+  ).then((items) => items.map(normalizeOpportunity));
+}
+
+/** GET /opportunities/matched — 프로필 벡터 기반 유사도 점수 포함 공고 목록 */
+export function getMatchedOpportunities(
+  userId: string,
+  limit = 100,
+  init?: ApiInit,
+): Promise<Opportunity[]> {
+  return apiGet<Opportunity[]>(
+    `/opportunities/matched?user_id=${encodeURIComponent(userId)}&limit=${limit}`,
+    init,
+  ).then((items) => items.map(normalizeOpportunity));
 }
 
 export function getOpportunity(
   id: string,
   init?: ApiInit,
 ): Promise<Opportunity> {
-  return apiGet<Opportunity>(`/opportunities/${id}`, init);
+  return apiGet<Opportunity>(`/opportunities/${id}`, init).then(
+    normalizeOpportunity,
+  );
 }
 
 // ===== 프로필 (profile) =====
@@ -102,6 +170,67 @@ export function sendChat(
   >("/chat", { message, user_id: userId, session_id: sessionId }, init);
 }
 
+export type ChatStreamCallbacks = {
+  onDelta: (text: string) => void;
+  onDone: (payload: { session_id: string; sources: ChatSource[] }) => void;
+  onError: (e: unknown) => void;
+};
+
+/** POST /chat/stream — SSE 스트리밍. 토큰 단위로 onDelta 호출. */
+export async function sendChatStream(
+  message: string,
+  userId: string,
+  sessionId: string | undefined,
+  callbacks: ChatStreamCallbacks,
+  init?: { signal?: AbortSignal },
+): Promise<void> {
+  try {
+    const resp = await fetch(`${BASE_URL}/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message,
+        user_id: userId,
+        session_id: sessionId,
+      }),
+      signal: init?.signal,
+    });
+    if (!resp.ok || !resp.body) {
+      throw new Error(`stream failed: ${resp.status}`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE 이벤트는 빈 줄(\n\n)로 구분된다
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? ""; // 마지막 조각은 미완성일 수 있음
+
+      for (const event of events) {
+        const line = event.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const payload = JSON.parse(line.slice("data: ".length));
+        if (payload.delta) {
+          callbacks.onDelta(payload.delta);
+        } else if (payload.done) {
+          callbacks.onDone({
+            session_id: payload.session_id,
+            sources: payload.sources ?? [],
+          });
+        }
+      }
+    }
+  } catch (e) {
+    callbacks.onError(e);
+  }
+}
+
 // ===== 개인화 추천 · 통계 (insight) =====
 // 백엔드 개편: prefix /recommend → /insight (insight.py)
 export type NewsArticle = {
@@ -152,6 +281,7 @@ export type PersonalizedOpportunity = Opportunity & {
 export type PersonalizedOpportunities = {
   has_compass: boolean;
   items: PersonalizedOpportunity[];
+  summary?: string;
 };
 
 /** GET /opportunities/personalized/{user_id} */
@@ -162,7 +292,10 @@ export function getPersonalizedOpportunities(
   return apiGet<PersonalizedOpportunities>(
     `/opportunities/personalized/${encodeURIComponent(userId)}`,
     init,
-  );
+  ).then((data) => ({
+    ...data,
+    items: data.items.map(normalizeOpportunity),
+  }));
 }
 
 /** 매칭 점수·추천 이유가 포함된 개인화 뉴스 아이템. match_score는 0~1. */
