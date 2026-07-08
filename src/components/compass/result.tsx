@@ -41,6 +41,11 @@ function scoreClass(pct: number) {
   return "bg-secondary text-muted-foreground";
 }
 
+function scorePercent(score?: number) {
+  const value = score ?? 0.6;
+  return Math.round(value <= 1 ? value * 100 : value);
+}
+
 const LOADING_MSGS = [
   "프로필 분석 중…",
   "36개 국제기구와 비교 중…",
@@ -75,7 +80,7 @@ export function Result({
   onRetry: () => void;
 }) {
   const recs = (data?.recommendations ?? []).slice(0, 3);
-  const topScore = recs[0]?.score ?? 60;
+  const topScore = scorePercent(recs[0]?.score);
   const angle = loading ? 20 : Math.round((topScore / 100) * 60 - 10);
   const nick = summary.nick ? `${summary.nick}님, ` : "";
   const topline = loading
@@ -360,7 +365,7 @@ function Feedback() {
 }
 
 function OrgCard({ rec, rank }: { rec: Recommendation; rank: number }) {
-  const pct = rec.score ?? 60;
+  const pct = scorePercent(rec.score);
   return (
     <div className="border-border bg-card flex flex-col gap-3 rounded-[16px] border p-4">
       <div className="flex items-start gap-3">
