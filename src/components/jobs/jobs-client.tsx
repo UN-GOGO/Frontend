@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import type { MouseEvent, PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
@@ -27,23 +28,33 @@ type PersonalizedItem = PersonalizedOpportunities["items"][number];
 const PAGE_SIZE = 9;
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "all",        label: "전체" },
-  { key: "JPO",        label: "JPO" },
+  { key: "all", label: "전체" },
+  { key: "JPO", label: "JPO" },
   { key: "internship", label: "인턴십" },
-  { key: "program",    label: "기구" },
+  { key: "program", label: "기구" },
 ];
 
 export function JobsClient() {
   const [state, setState] = useState<ConnState>("loading");
   const [error, setError] = useState<string | null>(null);
-  const [personalizedData, setPersonalizedData] = useState<PersonalizedOpportunities | null>(null);
-  const [compassResult, setCompassResult] = useState<NavigatorResultDetail | null>(null);
+  const [personalizedData, setPersonalizedData] =
+    useState<PersonalizedOpportunities | null>(null);
+  const [compassResult, setCompassResult] =
+    useState<NavigatorResultDetail | null>(null);
   const [allItems, setAllItems] = useState<Opportunity[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [sort, setSort] = useState<SortKey>("latest");
   const [page, setPage] = useState(1);
   const [referenceTime, setReferenceTime] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const carouselDragRef = useRef({
+    isDown: false,
+    moved: false,
+    pointerId: -1,
+    scrollLeft: 0,
+    startX: 0,
+  });
+  const [isCarouselDragging, setIsCarouselDragging] = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -51,15 +62,21 @@ export function JobsClient() {
       try {
         const uid = await getUserId();
         const [personalized, all, compass] = await Promise.all([
-          getPersonalizedOpportunities(uid, { signal: ctrl.signal })
-            .catch((): PersonalizedOpportunities => ({ has_compass: false, items: [] })),
+          getPersonalizedOpportunities(uid, { signal: ctrl.signal }).catch(
+            (): PersonalizedOpportunities => ({
+              has_compass: false,
+              items: [],
+            }),
+          ),
           getMatchedOpportunities(uid, 100, { signal: ctrl.signal })
             .then((items) =>
               items.length > 0
                 ? items
                 : getOpportunities({ limit: 100 }, { signal: ctrl.signal }),
             )
-            .catch(() => getOpportunities({ limit: 100 }, { signal: ctrl.signal })),
+            .catch(() =>
+              getOpportunities({ limit: 100 }, { signal: ctrl.signal }),
+            ),
           getLatestNavigatorResult().catch(() => null),
         ]);
         setPersonalizedData(personalized);
@@ -83,8 +100,12 @@ export function JobsClient() {
     const today = referenceTime || 0;
     const sortForCarousel = (items: PersonalizedItem[]) =>
       [...items].sort((a, b) => {
-        const da = a.deadline ? new Date(a.deadline).getTime() - today : Infinity;
-        const db = b.deadline ? new Date(b.deadline).getTime() - today : Infinity;
+        const da = a.deadline
+          ? new Date(a.deadline).getTime() - today
+          : Infinity;
+        const db = b.deadline
+          ? new Date(b.deadline).getTime() - today
+          : Infinity;
         // 마감 지난 공고(음수)는 뒤로
         const urgentA = da >= 0 ? da : Infinity;
         const urgentB = db >= 0 ? db : Infinity;
@@ -106,15 +127,19 @@ export function JobsClient() {
       .map((r) => r.abbr.trim().toUpperCase())
       .filter(Boolean);
     const recommended = allItems.filter((item) => {
-      const haystack = `${item.organization} ${item.title} ${item.description ?? ""}`.toUpperCase();
+      const haystack =
+        `${item.organization} ${item.title} ${item.description ?? ""}`.toUpperCase();
       return recommendedAbbrs.some((abbr) => haystack.includes(abbr));
     });
 
-    return sortForCarousel(recommended.length > 0 ? recommended : allItems).slice(0, 10);
+    return sortForCarousel(
+      recommended.length > 0 ? recommended : allItems,
+    ).slice(0, 10);
   }, [allItems, compassResult, personalizedData, referenceTime]);
 
   // LLM 요약 — 백엔드가 반환한 summary 우선, 없으면 기본 문구
-  const summaryText = personalizedData?.summary ||
+  const summaryText =
+    personalizedData?.summary ||
     (carouselItems.length
       ? `나침반 결과 기반 맞춤 공고 ${carouselItems.length}개`
       : "");
@@ -156,8 +181,14 @@ export function JobsClient() {
     currentPage * PAGE_SIZE,
   );
 
-  const selectTab = (t: TabKey) => { setActiveTab(t); setPage(1); };
-  const selectSort = (s: SortKey) => { setSort(s); setPage(1); };
+  const selectTab = (t: TabKey) => {
+    setActiveTab(t);
+    setPage(1);
+  };
+  const selectSort = (s: SortKey) => {
+    setSort(s);
+    setPage(1);
+  };
 
   const scrollCarousel = (dir: "prev" | "next") => {
     const el = carouselRef.current;
@@ -165,8 +196,55 @@ export function JobsClient() {
     el.scrollBy({ left: dir === "next" ? 316 : -316, behavior: "smooth" });
   };
 
-  const showCarousel =
-    state === "ok" && carouselItems.length > 0;
+  const startCarouselDrag = (ev: PointerEvent<HTMLDivElement>) => {
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    const el = carouselRef.current;
+    if (!el) return;
+
+    carouselDragRef.current = {
+      isDown: true,
+      moved: false,
+      pointerId: ev.pointerId,
+      scrollLeft: el.scrollLeft,
+      startX: ev.clientX,
+    };
+    setIsCarouselDragging(true);
+    el.setPointerCapture(ev.pointerId);
+  };
+
+  const moveCarouselDrag = (ev: PointerEvent<HTMLDivElement>) => {
+    const drag = carouselDragRef.current;
+    const el = carouselRef.current;
+    if (!drag.isDown || !el) return;
+
+    const deltaX = ev.clientX - drag.startX;
+    if (Math.abs(deltaX) > 4) {
+      drag.moved = true;
+      ev.preventDefault();
+    }
+    el.scrollLeft = drag.scrollLeft - deltaX;
+  };
+
+  const endCarouselDrag = (ev: PointerEvent<HTMLDivElement>) => {
+    const drag = carouselDragRef.current;
+    const el = carouselRef.current;
+    if (!drag.isDown || !el) return;
+
+    drag.isDown = false;
+    setIsCarouselDragging(false);
+    if (el.hasPointerCapture(ev.pointerId)) {
+      el.releasePointerCapture(ev.pointerId);
+    }
+  };
+
+  const suppressClickAfterDrag = (ev: MouseEvent<HTMLDivElement>) => {
+    if (!carouselDragRef.current.moved) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    carouselDragRef.current.moved = false;
+  };
+
+  const showCarousel = state === "ok" && carouselItems.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-[1120px] px-6 py-7">
@@ -218,10 +296,22 @@ export function JobsClient() {
           </div>
           <div
             ref={carouselRef}
-            className="flex gap-4 overflow-x-auto scroll-smooth px-6 pb-5 [scroll-snap-type:x_mandatory] [scroll-padding-left:1.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            onClickCapture={suppressClickAfterDrag}
+            onPointerCancel={endCarouselDrag}
+            onPointerDown={startCarouselDrag}
+            onPointerLeave={endCarouselDrag}
+            onPointerMove={moveCarouselDrag}
+            onPointerUp={endCarouselDrag}
+            className={cn(
+              "flex touch-pan-x [scroll-snap-type:x_mandatory] [scroll-padding-left:1.5rem] [scrollbar-width:none] gap-4 overflow-x-auto scroll-smooth px-6 pb-5 select-none [&::-webkit-scrollbar]:hidden",
+              isCarouselDragging ? "cursor-grabbing" : "cursor-grab",
+            )}
           >
             {carouselItems.map((o) => (
-              <div key={o.id} className="w-[300px] shrink-0 [scroll-snap-align:start]">
+              <div
+                key={o.id}
+                className="h-[286px] w-[min(300px,calc(100vw-4.5rem))] shrink-0 [scroll-snap-align:start]"
+              >
                 <JobCard job={o} />
               </div>
             ))}
@@ -269,13 +359,19 @@ export function JobsClient() {
       {state === "loading" && <JobCardSkeletonGrid />}
       {state === "ok" && allItems.length === 0 && (
         <div className="text-muted-foreground py-[70px] text-center">
-          <p className="text-foreground text-[15px] font-bold">표시할 공고가 없어요</p>
-          <p className="mt-1.5 text-sm">연결은 됐지만 공고 데이터가 비어 있습니다 (DB 시드 필요).</p>
+          <p className="text-foreground text-[15px] font-bold">
+            표시할 공고가 없어요
+          </p>
+          <p className="mt-1.5 text-sm">
+            연결은 됐지만 공고 데이터가 비어 있습니다 (DB 시드 필요).
+          </p>
         </div>
       )}
       {state === "ok" && allItems.length > 0 && visible.length === 0 && (
         <div className="text-muted-foreground py-[70px] text-center">
-          <p className="text-foreground text-[15px] font-bold">해당 유형의 공고가 없어요</p>
+          <p className="text-foreground text-[15px] font-bold">
+            해당 유형의 공고가 없어요
+          </p>
         </div>
       )}
 
@@ -288,7 +384,11 @@ export function JobsClient() {
 
       {/* ── Pagination ── */}
       {state === "ok" && pageCount > 1 && (
-        <Pagination page={currentPage} pageCount={pageCount} onChange={setPage} />
+        <Pagination
+          page={currentPage}
+          pageCount={pageCount}
+          onChange={setPage}
+        />
       )}
 
       {state === "error" && (
@@ -302,8 +402,14 @@ export function JobsClient() {
 }
 
 function FilterChip({
-  label, active, onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -321,15 +427,23 @@ function FilterChip({
 }
 
 function SortButton({
-  label, active, onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
         "rounded-md px-2.5 py-1 text-xs font-bold transition-colors",
-        active ? "bg-point-soft text-point-hover" : "text-muted-foreground hover:text-foreground",
+        active
+          ? "bg-point-soft text-point-hover"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {label}
@@ -338,16 +452,30 @@ function SortButton({
 }
 
 function Pagination({
-  page, pageCount, onChange,
-}: { page: number; pageCount: number; onChange: (next: number) => void }) {
+  page,
+  pageCount,
+  onChange,
+}: {
+  page: number;
+  pageCount: number;
+  onChange: (next: number) => void;
+}) {
   const go = (next: number) => {
     onChange(Math.min(Math.max(1, next), pageCount));
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== "undefined")
+      window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
-    <nav aria-label="공고 페이지" className="mt-8 flex items-center justify-center gap-1.5">
-      <PagerArrow label="이전 페이지" disabled={page === 1} onClick={() => go(page - 1)}>
+    <nav
+      aria-label="공고 페이지"
+      className="mt-8 flex items-center justify-center gap-1.5"
+    >
+      <PagerArrow
+        label="이전 페이지"
+        disabled={page === 1}
+        onClick={() => go(page - 1)}
+      >
         <ChevronLeft className="size-4" />
       </PagerArrow>
       {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
@@ -366,7 +494,11 @@ function Pagination({
           {p}
         </button>
       ))}
-      <PagerArrow label="다음 페이지" disabled={page === pageCount} onClick={() => go(page + 1)}>
+      <PagerArrow
+        label="다음 페이지"
+        disabled={page === pageCount}
+        onClick={() => go(page + 1)}
+      >
         <ChevronRight className="size-4" />
       </PagerArrow>
     </nav>
@@ -374,8 +506,16 @@ function Pagination({
 }
 
 function PagerArrow({
-  label, disabled, onClick, children,
-}: { label: string; disabled: boolean; onClick: () => void; children: React.ReactNode }) {
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
