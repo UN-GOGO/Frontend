@@ -21,4 +21,9 @@ export const nav: NavItem[] = [
   { href: "/insight", labelKey: "navInsight", icon: Newspaper },
 ];
 
-export const bottomNav: NavItem[] = nav;
+export const bottomNav: NavItem[] = [
+  { href: "/compass", labelKey: "navCompass", icon: Compass },
+  { href: "/jobs", labelKey: "navOpportunities", icon: Briefcase },
+  { href: "/insight", labelKey: "navInsight", icon: Newspaper },
+  { href: "/chat", labelKey: "navChat", icon: MessageCircle },
+];

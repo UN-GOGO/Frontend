@@ -3,7 +3,6 @@
 import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { ConnBadge, type ConnState } from "@/components/common/conn-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,8 +22,6 @@ import { cn } from "@/lib/utils";
 // 마이페이지 프로필 = 나침반과 동일한 정본(ProfileSummary 9필드)을 편집한다.
 // 여기서 저장하면 나침반 재방문 시 "불러오기"로 그대로 이어서 진단할 수 있다(양방향).
 export function ProfileClient() {
-  const [state, setState] = useState<ConnState>("loading");
-  const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileSummary>(EMPTY_PROFILE);
   const [saved, setSaved] = useState(false);
   const [needLogin, setNeedLogin] = useState(false);
@@ -33,7 +30,6 @@ export function ProfileClient() {
     (async () => {
       const p = await loadCompassProfile();
       if (p) setProfile(p);
-      setState("ok");
     })();
   }, []);
 
@@ -51,13 +47,8 @@ export function ProfileClient() {
     if (res.ok) {
       setSaved(true);
       setNeedLogin(false);
-      setError(null);
-      setState("ok");
     } else if (res.error === "not_authenticated") {
       setNeedLogin(true);
-    } else {
-      setError(res.error ?? "저장 실패");
-      setState("error");
     }
   };
 
@@ -65,7 +56,6 @@ export function ProfileClient() {
     <div className="mx-auto w-full max-w-[560px] px-6 py-8">
       <div className="mb-1 flex items-center justify-between gap-3">
         <h1 className="text-foreground text-xl font-bold">내 프로필</h1>
-        <ConnBadge state={state} error={error} />
       </div>
       <p className="text-muted-foreground mb-5 text-xs">
         여기서 저장한 내용은 나침반 진단에도 그대로 이어져요.
@@ -121,7 +111,7 @@ export function ProfileClient() {
           options={PATH_OPTIONS.map((o) => ({ value: o, label: o }))}
         />
 
-        <div className="mt-1 flex items-center gap-3">
+        <div className="border-border mt-1 flex items-center gap-3 border-t pt-4">
           <Button onClick={save} className="self-start">
             저장
           </Button>
