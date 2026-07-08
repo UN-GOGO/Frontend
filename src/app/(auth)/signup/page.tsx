@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
@@ -26,8 +26,10 @@ import {
 } from "@/lib/validations/auth";
 import { TermRow } from "@/components/auth/term-row";
 
-export default function SignupPage() {
+function SignupPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/";
 
   const {
     register,
@@ -77,7 +79,7 @@ export default function SignupPage() {
   };
 
   const onSocial = async (provider: OAuthProvider) => {
-    const error = await signInWithProvider(provider, "/");
+    const error = await signInWithProvider(provider, next);
     if (error) {
       setError("root", {
         message: "소셜 가입에 실패했어요. 잠시 후 다시 시도해 주세요.",
@@ -146,8 +148,8 @@ export default function SignupPage() {
       return;
     }
 
-    // 온보딩은 메인 화면 팝업으로 처리하므로 가입 후 홈으로 보낸다.
-    router.push("/");
+    // 온보딩은 메인 화면 팝업으로 처리하므로 가입 후 홈 또는 next 경로로 보낸다.
+    router.push(next);
   };
 
   return (
@@ -410,7 +412,11 @@ export default function SignupPage() {
               이미 계정이 있으세요?
             </p>
             <Link
-              href="/login"
+              href={
+                next !== "/"
+                  ? `/login?next=${encodeURIComponent(next)}`
+                  : "/login"
+              }
               className="text-point-hover text-[13px] font-extrabold"
             >
               로그인
@@ -419,5 +425,13 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupPageContent />
+    </Suspense>
   );
 }
