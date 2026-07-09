@@ -48,7 +48,7 @@ function scorePercent(score?: number) {
 
 const LOADING_MSGS = [
   "프로필 분석 중…",
-  "36개 국제기구와 비교 중…",
+  "나에게 맞는 국제기구를 열심히 찾고 있어요…",
   "관심 분야·강점 매칭 중…",
   "맞춤 조언 작성 중…",
 ];
@@ -628,9 +628,7 @@ function CompassLoading() {
         {LOADING_MSGS[i]}
       </p>
       <p className="text-muted-foreground/70 mt-2 text-xs leading-relaxed">
-        AI가 36개 국제기구와 꼼꼼히 비교하느라
-        <br />
-        10초쯤 걸려요
+        AI가 국제기구를 하나하나 꼼꼼히 살펴보고 있어요
       </p>
     </div>
   );

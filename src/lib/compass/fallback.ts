@@ -2,7 +2,7 @@ import { flowFor } from "./flows";
 import type { Answer, CompassTrack, RecommendResponse } from "./types";
 
 // ===== 규칙 기반 폴백 (백엔드 미동작 시) — 최소 카탈로그로 자체 채점 =====
-// 백엔드(un-gogo)가 켜지면 36개 실데이터 기반 AI 추천으로 대체된다.
+// 백엔드(un-gogo)가 켜지면 전체 국제기구 카탈로그 실데이터 기반 AI 추천으로 대체된다.
 const FALLBACK_ORGS = [
   {
     abbr: "UNDP",
@@ -98,6 +98,6 @@ export function ruleBased(
     needle_label: `${scored[0].org} 방향을 가리켜요`,
     recommendations: scored,
     advice:
-      "백엔드(AI) 연결이 안 되어 간이 규칙으로 추천했어요. 백엔드를 켜면 36개 실데이터 기반 AI 추천을 받을 수 있어요.",
+      "지금은 AI 대신 간단한 방식으로 찾아드렸어요. 곧 AI가 더 꼼꼼히 찾아드릴 수 있게 될 거예요.",
   };
 }
