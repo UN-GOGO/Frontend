@@ -1,5 +1,7 @@
+import { updateProfile } from "@/lib/api/iogo";
 import { createClient } from "@/lib/supabase/client";
 
+import { toBackendProfile } from "./profile-store";
 import type { Answer, ProfileSummary, RecommendResponse } from "./types";
 
 export type SaveResult = { ok: boolean; error?: string };
@@ -45,6 +47,25 @@ export async function saveCompassResult(params: {
     );
 
     if (error) return { ok: false, error: error.message };
+
+    // 나침반에서 저장 시에도 users 테이블 및 백엔드 프로필 연동 업데이트 수행
+    const backendProfile = toBackendProfile(params.profileInput);
+
+    // 1) users 테이블 직접 업데이트
+    const { error: userError } = await supabase
+      .from("users")
+      .update(backendProfile)
+      .eq("id", user.id);
+    if (userError) {
+      console.error(
+        "users 테이블 직접 업데이트 실패 (나침반 완료):",
+        userError.message,
+      );
+    }
+
+    // 2) 백엔드 /profile API 호출 동기화 (실패해도 무방)
+    void updateProfile(user.id, backendProfile).catch(() => {});
+
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

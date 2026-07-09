@@ -18,7 +18,7 @@ import type { ProfileSummary } from "./types";
 export type SaveResult = { ok: boolean; error?: string };
 
 /** 정본 ProfileSummary → 백엔드 Profile(개인화용) 파생 매핑. 손실이 있어도 무방(정본은 별도). */
-function toBackendProfile(p: ProfileSummary) {
+export function toBackendProfile(p: ProfileSummary) {
   const languages = [
     p.english_level && `영어: ${p.english_level}`,
     p.second_language && `제2외국어: ${p.second_language}`,
@@ -64,7 +64,16 @@ export async function saveCompassProfile(
     );
     if (error) return { ok: false, error: error.message };
 
-    // 챗봇·인사이트 개인화용 파생 프로필 동기화(정본 저장과 독립, 실패해도 무방)
+    // 챗봇·인사이트 개인화용 파생 프로필 동기화(users 테이블 직접 업데이트)
+    const { error: userError } = await supabase
+      .from("users")
+      .update(toBackendProfile(p))
+      .eq("id", user.id);
+    if (userError) {
+      console.error("users 테이블 직접 업데이트 실패:", userError.message);
+    }
+
+    // 백엔드 /profile API 호출 동기화(실패해도 무방)
     void updateProfile(user.id, toBackendProfile(p)).catch(() => {});
     return { ok: true };
   } catch (e) {
