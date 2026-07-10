@@ -42,10 +42,12 @@ export function JobCard({
           <div className="bg-primary flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[11px] font-extrabold text-white">
             {orgAbbrev(o.organization)}
           </div>
-          <div className="min-w-0">
-            <div className="text-muted-foreground truncate text-xs font-bold">
-              {o.organization}
-            </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            {o.type && (
+              <span className="border-border text-muted-foreground w-fit rounded-md border px-2 py-0.5 text-[11px] font-bold">
+                {o.type}
+              </span>
+            )}
             {o.location && (
               <div className="truncate text-[11px] text-slate-400">
                 {o.location}
@@ -59,18 +61,9 @@ export function JobCard({
         />
       </div>
 
-      {/* title + type tag */}
-      <div className="min-h-[76px]">
-        <div className="text-foreground line-clamp-2 min-h-[44px] text-base leading-snug font-extrabold tracking-tight">
-          {o.title}
-        </div>
-        {o.type && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="bg-point-soft text-point-hover rounded-md px-2.5 py-1 text-[11px] font-bold">
-              {o.type}
-            </span>
-          </div>
-        )}
+      {/* title */}
+      <div className="text-foreground line-clamp-2 min-h-[44px] text-base leading-snug font-extrabold tracking-tight">
+        {o.title}
       </div>
 
       <p className="line-clamp-2 min-h-[42px] text-[13px] leading-relaxed text-slate-600">
