@@ -309,7 +309,7 @@ export function JobsClient() {
             {carouselItems.map((o) => (
               <div
                 key={o.id}
-                className="h-[286px] w-[min(300px,calc(100vw-4.5rem))] shrink-0 [scroll-snap-align:start]"
+                className="w-[min(300px,calc(100vw-4.5rem))] shrink-0 [scroll-snap-align:start]"
               >
                 <JobCard job={o} />
               </div>
