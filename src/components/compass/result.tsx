@@ -1,9 +1,9 @@
 "use client";
 
 import { Camera, ChevronDown, ChevronUp } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { saveNodeAsImage } from "@/lib/compass/capture";
 import { sendCompassFeedback } from "@/lib/compass/feedback";
 import type {
@@ -303,6 +303,23 @@ export function Result({
           </div>
           {/* ↑ 여기까지가 캡쳐 대상(captureRef). 아래 액션·피드백은 이미지에 포함 안 됨 */}
 
+          {/* 1단: 결과로 이어지는 다음 행동 */}
+          <div className="flex flex-col gap-2.5 sm:flex-row">
+            <Link
+              href="/jobs"
+              className="bg-primary hover:bg-point-hover flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold text-white transition-colors"
+            >
+              맞춤 공고 보러가기 →
+            </Link>
+            <Link
+              href="/insight"
+              className="border-point-border bg-point-soft text-point-hover hover:bg-point-border/40 flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-3 text-sm font-bold transition-colors"
+            >
+              분야 인사이트 보기 →
+            </Link>
+          </div>
+
+          {/* 2단: 부가 기능 */}
           <div className="flex flex-col gap-2.5 sm:flex-row">
             <button
               type="button"
@@ -321,10 +338,6 @@ export function Result({
               다시 진단
             </button>
           </div>
-
-          <Button className="bg-primary hover:bg-point-hover h-auto w-full rounded-xl py-3 text-sm font-bold">
-            이 기구 준비 로드맵 짜기 →
-          </Button>
 
           <Feedback />
         </>
