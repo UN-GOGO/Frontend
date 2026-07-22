@@ -87,7 +87,9 @@ export function CompassFlow() {
   const finish = async (answers: Answer[]) => {
     if (!track) return;
     const profile = buildProfile(profileInput, answers, track);
-    setSummary(profileInput);
+    // buildProfile이 퀴즈 답에서 도출한 관심 분야·진출 경로까지 포함된 프로필.
+    // 원본 profileInput을 그대로 쓰면 파생값이 유실되어 공고·인사이트가 재료를 잃는다.
+    setSummary(profile.summary);
     setLoading(true);
     setPhase("result");
     const {
@@ -107,7 +109,7 @@ export function CompassFlow() {
     // users 동기화는 프로필 수정 페이지의 명시 저장에서만 수행한다.
     if (saveToMypage) {
       void saveCompassResult({
-        profileInput,
+        profileInput: profile.summary,
         profileText: profile.text,
         answers,
         data,

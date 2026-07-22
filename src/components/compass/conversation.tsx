@@ -691,6 +691,63 @@ function ProfileInput({
   onCancel?: () => void;
 }) {
   const [text, setText] = useState(initial ?? "");
+  // 복수 선택 — 값은 ", "로 이어 붙인 한 문자열로 저장한다(대화 1턴 = 1문자열).
+  const [picked, setPicked] = useState<string[]>(() =>
+    initial ? initial.split(", ").filter(Boolean) : [],
+  );
+
+  if (step.kind === "multi") {
+    const toggle = (o: string) =>
+      setPicked((prev) => {
+        // "없음"은 배타 선택 — 고르면 나머지를 비우고, 다른 걸 고르면 "없음"이 빠진다.
+        if (o === "없음") return prev.includes(o) ? [] : ["없음"];
+        const rest = prev.filter((v) => v !== "없음");
+        return rest.includes(o) ? rest.filter((v) => v !== o) : [...rest, o];
+      });
+    const submit = () => {
+      const v = picked.join(", ");
+      if (!v) {
+        if (step.optional) onAnswer("", "건너뛰기");
+        return;
+      }
+      onAnswer(v, v);
+    };
+    return (
+      <div className="flex flex-col gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {step.opts.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => toggle(o)}
+              className={cn(optBase, picked.includes(o) ? optOn : optOff)}
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={submit}
+            disabled={!picked.length && !step.optional}
+            className="bg-point hover:bg-point-hover h-auto shrink-0 rounded-xl px-5 font-semibold text-white"
+          >
+            확인
+          </Button>
+          {step.optional && !picked.length && (
+            <Button
+              type="button"
+              onClick={() => onAnswer("", "건너뛰기")}
+              className="border-point text-point hover:bg-point/5 hover:text-point h-auto shrink-0 rounded-xl border-[1.5px] bg-white px-5 font-semibold"
+            >
+              건너뛰기
+            </Button>
+          )}
+          {editing && onCancel && <CancelEdit onCancel={onCancel} />}
+        </div>
+      </div>
+    );
+  }
 
   if (step.kind === "single") {
     return (
