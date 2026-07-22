@@ -10,25 +10,43 @@ export type CompassTrack = "interest" | "advanced";
 
 /**
  * 나침반 프로필 — A/B 공통 스키마(B ⊇ A).
- * A는 {track, nick, status, major, english}만 채우고,
- * B는 거기에 {experience, second, cert, targetPath}를 추가로 채운다.
- * 저장/표시가 단순하도록 항목 키는 하나로 통일한다.
+ * 원칙(2026-06-28 회의 합의): A는 별도 문항을 갖지 않고 **B 문항의 부분집합**만 묻는다.
+ *   - A(4문항): 호칭 · 학업단계+전공 · 영어 수준 · 제2외국어(언어+수준)
+ *   - B(6문항): 위 + 졸업 시기 · 경험/경력 · 각종 자격증 · 석사 연구 주제
+ *
+ * 값은 모두 문자열로 둔다(대화형 입력 1턴 = 1문자열). 복수 선택 항목은
+ * ", "로 이어 붙인 문자열로 저장하여 마이페이지 폼에서도 그대로 편집·표시된다.
+ *
+ * ※ target_field(관심 분야)·target_path(진출 경로)는 **프로필에서 직접 묻지 않는다**.
+ *   진단 퀴즈와 중복이기 때문(2026-07-09 결정). 대신 buildProfile()이 퀴즈 답에서
+ *   도출해 채운다. 공고·인사이트 추천이 이 두 값을 참조하므로 필드 자체는 유지하며,
+ *   마이페이지에서 사용자가 직접 확인·수정할 수 있다.
  */
 export type ProfileSummary = {
   track: CompassTrack | "";
-  nickname: string; // 닉네임 (A 전용/선택)
-  status: string; // 현재 상태 (공통, 필수)
-  familiarity: string; // 국제기구 친숙도 (A 전용, 필수)
-  interest_hint: string; // 전공 또는 요즘 관심사 (A 전용, 선택)
-  bachelor_major: string; // 학사 전공 (B 전용, 필수)
-  graduate_major: string; // 석사 전공 (B 전용, 선택)
+  nickname: string; // 호칭 (공통, 선택)
+  status: string; // 학업 단계 (공통, 필수)
+  bachelor_major: string; // 학사 전공 (공통, 필수)
+  graduate_major: string; // 석사 전공 (공통, 석사 이상일 때만)
+  research_topic: string; // 연구 주제 (B 전용, 석사 이상일 때만, 선택)
   graduation_timing: string; // 졸업 또는 졸업예정 시기 (B 전용, 선택)
-  experience_years: string; // 관련 경력 (B 전용, 필수)
-  english_level: string; // 영어 업무 수행 수준 (B 전용, 필수)
-  second_language: string; // 제2외국어 (B 전용, 선택)
-  target_field: string; // 관심 분야 (B 전용, 선택)
-  target_path: string; // 관심 진출 경로 (B 전용, 선택)
-  cert: string; // 자격증 (B 전용, 선택 - 기존 호환 보존)
+  experience_types: string; // 관련 경험 종류(복수, ", " 결합) (B 전용)
+  experience_years: string; // 관련 경험 기간 (B 전용)
+  experience_detail: string; // 경험 한 줄 보충 (B 전용, 선택)
+  english_level: string; // 영어 업무 수행 수준 (공통, 필수)
+  english_cert: string; // 영어 자격증 (B 전용, 선택)
+  second_language: string; // 제2외국어 (공통, 선택)
+  second_language_level: string; // 제2외국어 수준 (공통, 제2외국어 있을 때)
+  second_language_cert: string; // 제2외국어 자격증 (B 전용, 제2외국어 있을 때)
+
+  // 프로필에서 직접 묻지 않고 퀴즈 답에서 도출되는 값 (위 주석 참조)
+  target_field: string; // 관심 분야
+  target_path: string; // 관심 진출 경로
+
+  // 하위 호환 보존 필드 (과거 저장 데이터 표시용, 새로 묻지 않음)
+  familiarity: string;
+  interest_hint: string;
+  cert: string;
 };
 
 /** 퀴즈 문항 정의 */
