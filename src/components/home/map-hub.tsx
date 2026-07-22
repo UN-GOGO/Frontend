@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import useEmblaCarousel from "embla-carousel-react";
 import {
   Briefcase,
   Compass,
   MessageCircle,
   Newspaper,
+  ChevronLeft,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
@@ -15,75 +18,155 @@ import Image from "next/image";
 type Hub = {
   href: string;
   label: string;
-  descTitle: string;
-  descDetail: string;
+  badgeText: string;
+  fullTitle: string;
+  descLine1: string;
+  descLine2: string;
   icon: LucideIcon;
-  top: number; // percentage
-  left: number; // percentage
-  // Card customization on mobile
+  stepNumber: number;
+  top: number; // percentage (desktop)
+  left: number; // percentage (desktop)
   cardBg: string;
   cardText: string;
   stepBg: string;
   stepText: string;
+  iconBg: string; // for desktop Lucide ring
+  imageSrc: string; // for mobile SVG
+  imageWidth: number;
+  imageHeight: number;
+  imageTop: string;
+  imageLeft: string;
 };
 
+// Exact data mapping & color specs per SVG 998x320 vector source
 const HUBS: Hub[] = [
-  {
-    href: "/jobs",
-    label: "공고",
-    descTitle: "네 방향을 찾았다면, 이제 실제 기회를 만나볼 차례야!",
-    descDetail: "너와 잘 맞는 국제기구 공고를 함께 찾아보자.",
-    icon: Briefcase,
-    top: 52,
-    left: 16.5,
-    cardBg: "bg-[#0B2447]",
-    cardText: "text-white",
-    stepBg: "bg-white",
-    stepText: "text-[#0B2447]",
-  },
-  {
-    href: "/chat",
-    label: "챗봇",
-    descTitle: "막히는 부분이 있다면 언제든 물어봐!",
-    descDetail: "나랑이가 국제기구 진출에 필요한 궁금증을 함께 풀어줄게.",
-    top: 26,
-    left: 32.5,
-    icon: MessageCircle,
-    cardBg: "bg-[#E0F2FE]",
-    cardText: "text-[#0B2447]",
-    stepBg: "bg-[#0B2447]",
-    stepText: "text-white",
-  },
   {
     href: "/compass",
     label: "나침반",
-    descTitle: "어디로 가야 할지 고민된다면 여기부터 시작해!",
-    descDetail: "나침반이 너에게 맞는 진로 방향을 알려줄 거야.",
+    badgeText: "STEP 1",
+    fullTitle: "나침반 (적성/진로 테스트)",
+    descLine1: "어디로 가야 할지 고민된다면 여기부터 시작해!",
+    descLine2: "나침반이 너에게 맞는 진로 방향을 알려줄 거야.",
     icon: Compass,
+    stepNumber: 1,
     top: 40,
     left: 44.5,
-    cardBg: "bg-[#117dff]",
+    cardBg: "bg-[#007FFF]",
     cardText: "text-white",
     stepBg: "bg-white",
-    stepText: "text-[#117dff]",
+    stepText: "text-[#007FFF]",
+    iconBg: "from-[#3399FF] to-[#0066CC] border-white/50 text-white shadow-xl",
+    imageSrc: "/main_icon01.svg",
+    imageWidth: 157,
+    imageHeight: 152,
+    imageTop: "-37px",
+    imageLeft: "72px",
+  },
+  {
+    href: "/jobs",
+    label: "공고",
+    badgeText: "STEP 2",
+    fullTitle: "공고 (맞춤형 공고 탐색)",
+    descLine1: "네 방향을 찾았다면, 이제 실제 기회를 만나볼 차례야!",
+    descLine2: "너와 잘 맞는 국제기구 공고를 함께 찾아보자.",
+    icon: Briefcase,
+    stepNumber: 2,
+    top: 52,
+    left: 16.5,
+    cardBg: "bg-[#0C5CBD]",
+    cardText: "text-white",
+    stepBg: "bg-white",
+    stepText: "text-[#007FFF]",
+    iconBg: "from-[#1772E2] to-[#08418A] border-white/40 text-white shadow-xl",
+    imageSrc: "/main_icon02.svg",
+    imageWidth: 147,
+    imageHeight: 166,
+    imageTop: "-37px",
+    imageLeft: "84px",
   },
   {
     href: "/insight",
     label: "인사이트",
-    descTitle: "국제기구가 요즘 어떤 일을 하는지 궁금하지 않아?",
-    descDetail: "너의 관심 분야에 맞는 기사와 소식을 모아줄게.",
+    badgeText: "STEP 3",
+    fullTitle: "인사이트 (맞춤형 기사 추천)",
+    descLine1: "국제기구가 요즘 어떤 일을 하는지 궁금하지 않아?",
+    descLine2: "너의 관심 분야에 맞는 기사와 소식을 모아줄게.",
     icon: Newspaper,
+    stepNumber: 3,
     top: 36,
     left: 78,
-    cardBg: "bg-[#38BDF8]",
+    cardBg: "bg-[#42C0FF]",
     cardText: "text-white",
     stepBg: "bg-white",
-    stepText: "text-[#38BDF8]",
+    stepText: "text-[#007FFF]",
+    iconBg: "from-[#7DD3FC] to-[#0284C7] border-white/60 text-white shadow-xl",
+    imageSrc: "/main_icon03.svg",
+    imageWidth: 147,
+    imageHeight: 156,
+    imageTop: "-27px",
+    imageLeft: "74px",
+  },
+  {
+    href: "/chat",
+    label: "챗봇",
+    badgeText: "STEP 4",
+    fullTitle: "챗봇 (Q&A 및 실시간 질문)",
+    descLine1: "막히는 부분이 있다면 언제든 물어봐!",
+    descLine2: "나랑이가 국제기구 진출에 필요한 궁금증을 함께 풀어줄게.",
+    icon: MessageCircle,
+    stepNumber: 4,
+    top: 26,
+    left: 32.5,
+    cardBg: "bg-[#D3EEFD]",
+    cardText: "text-[#0C5CBD]",
+    stepBg: "bg-white",
+    stepText: "text-[#0C5CBD]",
+    iconBg: "from-white to-[#BAE6FD] border-white/90 text-[#0C5CBD] shadow-md",
+    imageSrc: "/main_icon04.svg",
+    imageWidth: 160,
+    imageHeight: 144,
+    imageTop: "-17px",
+    imageLeft: "81px",
   },
 ];
 
 export function MapHub() {
   const router = useRouter();
+
+  // Embla Carousel hook for smooth mobile card sliding
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: false,
+    align: "center",
+    containScroll: false,
+  });
+  const [activeStep, setActiveStep] = useState(0);
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
+
+  const scrollTo = useCallback(
+    (index: number) => {
+      if (emblaApi) emblaApi.scrollTo(index);
+    },
+    [emblaApi],
+  );
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      setActiveStep(emblaApi.selectedScrollSnap());
+    };
+    emblaApi.on("select", onSelect);
+    onSelect();
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi]);
 
   // Prefetch pages for instant transitions
   useEffect(() => {
@@ -107,9 +190,9 @@ export function MapHub() {
       />
 
       {/* ========================================================================= */}
-      {/* 1. Desktop View (Visible on md and above)                                */}
+      {/* 1. Desktop View (Visible on lg and above)                                */}
       {/* ========================================================================= */}
-      <div className="relative hidden w-full flex-grow flex-col overflow-hidden bg-[linear-gradient(to_top,#CBE9FF_0%,#F6FBFC_61%)] md:flex">
+      <div className="relative hidden w-full flex-grow flex-col overflow-hidden bg-[linear-gradient(to_top,#CBE9FF_0%,#F6FBFC_61%)] lg:flex">
         {/* Dotted vector map background & blue overlay */}
         <div className="absolute inset-0 z-0">
           <Image
@@ -164,80 +247,146 @@ export function MapHub() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. Mobile View (Visible on screens smaller than md)                      */}
+      {/* 2. Mobile & Tablet View (Up to 1024px)                                    */}
       {/* ========================================================================= */}
-      <div className="no-scrollbar relative flex w-full flex-grow flex-col overflow-y-auto bg-gradient-to-b from-[#E0F2FE] to-[#F0F9FF] px-6 py-6 pb-20 md:hidden">
-        {/* Welcome Section */}
-        <div className="mt-4 mb-6 flex w-full items-center gap-4 select-none">
-          {/* Mascot */}
-          <div className="relative size-[140px] shrink-0">
-            <Image
-              src="/mascot_default.png"
-              alt="나랑이"
-              fill
-              priority
-              sizes="140px"
-              className="object-contain drop-shadow-lg"
-            />
-          </div>
-          {/* Welcome Text */}
-          <div className="flex flex-col">
-            <h1 className="text-[20px] leading-snug font-extrabold tracking-tight text-[#0B2447]">
+      <div className="no-scrollbar relative flex min-h-screen w-full flex-col overflow-x-hidden bg-gradient-to-b from-[#F6FBFC] to-[#CBE9FF] lg:hidden">
+        {/* ======================= */}
+        {/* 모바일 전용 Hero (0 ~ 639px) */}
+        {/* ======================= */}
+        <div className="sm:hidden">
+          {/* Welcome Text Section */}
+          <div className="relative z-10 pt-[60px] pl-[25px] text-left select-none">
+            <h1 className="text-[28px] leading-[1.3] font-bold tracking-[-0.02em] text-[#123C91]">
               안녕하세요!
               <br />
               여러분의 국제기구 진출을
               <br />
               돕는 든든한 길잡이
-              <br />
-              <span className="mt-1 inline-block rounded-[8px] bg-[#117dff] px-2 py-0.5 text-[18px] font-extrabold text-white shadow-sm">
-                나랑
-              </span>{" "}
-              이에요
             </h1>
+            <div className="mt-2 flex items-center">
+              <span className="inline-flex items-center justify-center rounded-[10px] bg-[#0088FF] px-[10px] py-[4px] text-[28px] font-bold tracking-[-0.02em] text-white">
+                나랑
+              </span>
+              <span className="ml-[10px] text-[28px] font-bold tracking-[-0.02em] text-[#123C91]">
+                이에요
+              </span>
+            </div>
+          </div>
+
+          {/* 3D Mascot Character (Exact 420x384 spec) */}
+          <div className="pointer-events-none relative z-0 mx-auto mt-[10px] w-full pb-[90%]">
+            <Image
+              src="/mascot_default.png"
+              alt="나랑이"
+              fill
+              priority
+              sizes="420px"
+              className="absolute -left-[23px] origin-top scale-[1.1] transform-gpu object-cover"
+            />
+            {/* 삭제되었던 모바일 픽셀 퍼펙트 그라데이션 장식 완벽 복구 */}
+            <div className="pointer-events-none absolute bottom-0 left-0 z-0 h-[100px] w-full bg-[linear-gradient(180deg,rgba(253,253,253,0)_0%,#f0f0f0_24.04%,#f0f0f0_100%)]" />
           </div>
         </div>
 
-        {/* Card Carousel */}
-        <div className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-1 pt-2 pb-6">
-          {HUBS.map((hub, i) => {
-            const Icon = hub.icon;
-            return (
-              <Link
-                key={hub.href}
-                href={hub.href}
-                className={`flex aspect-[4/5] w-[285px] shrink-0 snap-center flex-col justify-between rounded-[28px] p-6 shadow-[0_8px_20px_rgba(0,0,0,0.06)] ${hub.cardBg} transition-transform active:scale-98`}
-              >
-                {/* 3D-like circular badge for icon */}
-                <div className="relative flex size-20 items-center justify-center rounded-full border border-white/25 bg-white/20 shadow-lg backdrop-blur-md">
-                  <Icon className="size-9 text-white" strokeWidth={2.2} />
-                </div>
+        {/* ============================== */}
+        {/* 태블릿 전용 Hero (640px ~ 1023px) */}
+        {/* ============================== */}
+        <div className="relative z-10 hidden w-full flex-row items-center justify-between px-[25px] pt-[100px] sm:mx-auto sm:flex sm:max-w-4xl lg:hidden">
+          {/* Welcome Text Section */}
+          <div className="flex w-1/2 flex-col text-left select-none">
+            <h1 className="text-3xl leading-[1.3] font-bold tracking-[-0.02em] text-[#123C91] sm:text-2xl">
+              안녕하세요!
+              <br />
+              여러분의 국제기구 진출을
+              <br />
+              돕는 든든한 길잡이
+            </h1>
+            <div className="mt-2 flex items-center">
+              <span className="inline-flex items-center justify-center rounded-[10px] bg-[#0088FF] px-[10px] py-[4px] text-3xl font-bold tracking-[-0.02em] text-white sm:text-2xl">
+                나랑
+              </span>
+              <span className="ml-[10px] text-3xl font-bold tracking-[-0.02em] text-[#123C91] sm:text-2xl">
+                이에요
+              </span>
+            </div>
+          </div>
 
-                {/* Info Text */}
-                <div className="mt-4 flex flex-col">
+          {/* 3D Mascot Character */}
+          <div className="pointer-events-none relative z-0 w-1/2 max-w-full pb-[300px]">
+            <Image
+              src="/mascot_default.png"
+              alt="나랑이"
+              fill
+              priority
+              sizes="360px"
+              className="absolute right-0 object-contain"
+            />
+          </div>
+        </div>
+
+        {/* Embla Carousel Viewport */}
+        {/* 모바일은 -mt-[50px]로 바짝 올리고 그라데이션 노출, 태블릿은 정상 마진에 투명 배경 */}
+        <div className="relative z-20 -mt-[50px] w-full bg-[linear-gradient(180deg,rgba(253,253,253,0)_0%,#f0f0f0_24.04%,#f0f0f0_100%)] sm:mt-0 sm:bg-none">
+          <div
+            className="w-full cursor-grab touch-pan-y overflow-hidden active:cursor-grabbing"
+            ref={emblaRef}
+          >
+            {/* 아이콘이 위로 튀어나오므로 모바일/태블릿 모두 pt-[50px]를 주어 클리핑 방지 */}
+            <div className="flex items-stretch gap-4 pt-[50px] pr-12 pb-8 pl-6">
+              {HUBS.map((hub) => {
+                return (
                   <div
-                    className={`mb-3 inline-block w-fit rounded-full px-3 py-1 text-[10.5px] font-extrabold shadow-sm ${hub.stepBg} ${hub.stepText}`}
+                    key={hub.href}
+                    className="min-w-0 flex-[0_0_241px] shrink-0"
                   >
-                    STEP {i + 1}
+                    <Link
+                      href={hub.href}
+                      className={`relative flex h-[283px] w-[241px] flex-col items-start rounded-[20px] px-[18px] pt-[129px] pb-[73px] shadow-[0_12px_28px_rgba(18,60,145,0.15)] ${hub.cardBg} transition-transform active:scale-98`}
+                    >
+                      {/* 3D SVG Image (Absolute Positioned via Figma Spec) */}
+                      <Image
+                        src={hub.imageSrc}
+                        alt={hub.label}
+                        width={hub.imageWidth}
+                        height={hub.imageHeight}
+                        className="pointer-events-none absolute z-10 m-0"
+                        style={{ top: hub.imageTop, left: hub.imageLeft }}
+                        priority
+                      />
+
+                      {/* Card Content Container */}
+                      <div className="relative z-20 flex w-full flex-col items-start gap-[9px]">
+                        {/* STEP Badge */}
+                        <div
+                          className={`flex items-center justify-center rounded-[10px] px-[10px] py-[4px] text-center ${hub.stepBg} ${hub.stepText}`}
+                        >
+                          <span className="text-[14px] leading-none font-bold tracking-[-0.02em]">
+                            {hub.badgeText}
+                          </span>
+                        </div>
+
+                        {/* Full Title */}
+                        <div
+                          className={`w-full text-[16px] font-semibold tracking-[-0.02em] ${hub.cardText} leading-snug`}
+                        >
+                          {hub.fullTitle}
+                        </div>
+
+                        {/* Description Lines */}
+                        <div
+                          className={`w-full text-[10px] font-semibold tracking-[-0.02em] ${hub.cardText} leading-[140%] break-keep`}
+                        >
+                          {hub.descLine1}
+                          <br />
+                          {hub.descLine2}
+                        </div>
+                      </div>
+                    </Link>
                   </div>
-                  <h3
-                    className={`text-lg font-bold tracking-tight ${hub.cardText} mb-2`}
-                  >
-                    {hub.label} {i === 0 && "(적성/진로 테스트)"}
-                    {i === 1 && "(맞춤형 공고 탐색)"}
-                    {i === 2 && "(맞춤형 기사 추천)"}
-                    {i === 3 && "(Q&A 및 실시간 질문)"}
-                  </h3>
-                  <p
-                    className={`text-[12.5px] leading-relaxed font-medium opacity-90 ${hub.cardText}`}
-                  >
-                    {hub.descTitle}
-                    <br />
-                    {hub.descDetail}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </>
@@ -271,9 +420,9 @@ function MapPin({ hub, delay }: { hub: Hub; delay: number }) {
         <div className="mb-1 text-[15px] font-extrabold text-[#38BDF8]">
           {hub.label}
         </div>
-        <div className="text-white">{hub.descTitle}</div>
+        <div className="text-white">{hub.descLine1}</div>
         <div className="mt-0.5 text-[11px] font-normal text-white/70">
-          {hub.descDetail}
+          {hub.descLine2}
         </div>
         {/* Down Arrow */}
         <div className="absolute top-full left-1/2 -mt-[1px] h-0 w-0 -translate-x-1/2 border-t-[6px] border-r-[6px] border-l-[6px] border-t-[#19376D] border-r-transparent border-l-transparent" />

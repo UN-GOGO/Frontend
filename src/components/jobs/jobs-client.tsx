@@ -1,8 +1,8 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
-import type { MouseEvent, PointerEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { type ConnState } from "@/components/common/conn-badge";
 import { JobCard } from "@/components/jobs/job-card";
@@ -20,6 +20,8 @@ import {
   type NavigatorResultDetail,
 } from "@/lib/compass/history";
 import { cn } from "@/lib/utils";
+
+import useEmblaCarousel from "embla-carousel-react";
 
 type SortKey = "latest" | "deadline";
 type TabKey = "all" | "JPO" | "internship" | "program";
@@ -46,15 +48,29 @@ export function JobsClient() {
   const [sort, setSort] = useState<SortKey>("latest");
   const [page, setPage] = useState(1);
   const [referenceTime, setReferenceTime] = useState(0);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const carouselDragRef = useRef({
-    isDown: false,
-    moved: false,
-    pointerId: -1,
-    scrollLeft: 0,
-    startX: 0,
+
+  // Embla Carousel Hook for ultra-smooth mobile & desktop sliding
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: false,
+    align: "center",
+    containScroll: false,
+    breakpoints: {
+      "(min-width: 640px)": {
+        align: "start",
+        containScroll: "trimSnaps",
+      },
+    },
   });
-  const [isCarouselDragging, setIsCarouselDragging] = useState(false);
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
+
+
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -144,6 +160,13 @@ export function JobsClient() {
       ? `나침반 결과 기반 맞춤 공고 ${carouselItems.length}개`
       : "");
 
+  // Re-initialize Embla Carousel when carouselItems are fetched and populated
+  useEffect(() => {
+    if (emblaApi) {
+      emblaApi.reInit();
+    }
+  }, [emblaApi, carouselItems]);
+
   // 탭 + 정렬 필터링
   const visible = useMemo(() => {
     const filtered =
@@ -190,64 +213,10 @@ export function JobsClient() {
     setPage(1);
   };
 
-  const scrollCarousel = (dir: "prev" | "next") => {
-    const el = carouselRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir === "next" ? 316 : -316, behavior: "smooth" });
-  };
-
-  const startCarouselDrag = (ev: PointerEvent<HTMLDivElement>) => {
-    if (ev.pointerType === "mouse" && ev.button !== 0) return;
-    const el = carouselRef.current;
-    if (!el) return;
-
-    carouselDragRef.current = {
-      isDown: true,
-      moved: false,
-      pointerId: ev.pointerId,
-      scrollLeft: el.scrollLeft,
-      startX: ev.clientX,
-    };
-    setIsCarouselDragging(true);
-    el.setPointerCapture(ev.pointerId);
-  };
-
-  const moveCarouselDrag = (ev: PointerEvent<HTMLDivElement>) => {
-    const drag = carouselDragRef.current;
-    const el = carouselRef.current;
-    if (!drag.isDown || !el) return;
-
-    const deltaX = ev.clientX - drag.startX;
-    if (Math.abs(deltaX) > 4) {
-      drag.moved = true;
-      ev.preventDefault();
-    }
-    el.scrollLeft = drag.scrollLeft - deltaX;
-  };
-
-  const endCarouselDrag = (ev: PointerEvent<HTMLDivElement>) => {
-    const drag = carouselDragRef.current;
-    const el = carouselRef.current;
-    if (!drag.isDown || !el) return;
-
-    drag.isDown = false;
-    setIsCarouselDragging(false);
-    if (el.hasPointerCapture(ev.pointerId)) {
-      el.releasePointerCapture(ev.pointerId);
-    }
-  };
-
-  const suppressClickAfterDrag = (ev: MouseEvent<HTMLDivElement>) => {
-    if (!carouselDragRef.current.moved) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    carouselDragRef.current.moved = false;
-  };
-
   const showCarousel = state === "ok" && carouselItems.length > 0;
 
   return (
-    <div className="mx-auto w-full max-w-[1120px] px-6 py-7">
+    <div className="mx-auto w-full max-w-[1120px] px-4 py-5 md:px-6 md:py-7">
       {/* ── Header ── */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -260,7 +229,7 @@ export function JobsClient() {
         </div>
       </div>
 
-      {/* ── 섹션 A: 맞춤 공고 캐러셀 ── */}
+      {/* ── 섹션 A: 맞춤 공고 캐러셀 (Embla Carousel 적용) ── */}
       {showCarousel && (
         <div className="border-border bg-card mb-8 overflow-hidden rounded-xl border shadow-sm">
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -278,42 +247,32 @@ export function JobsClient() {
               <button
                 type="button"
                 aria-label="이전"
-                onClick={() => scrollCarousel("prev")}
-                className="border-border hover:border-point flex size-8 items-center justify-center rounded-lg border transition-colors"
+                onClick={scrollPrev}
+                className="border-border hover:border-point flex size-8 items-center justify-center rounded-lg border transition-colors cursor-pointer active:scale-95"
               >
                 <ChevronLeft className="size-4" />
               </button>
               <button
                 type="button"
                 aria-label="다음"
-                onClick={() => scrollCarousel("next")}
-                className="border-border hover:border-point flex size-8 items-center justify-center rounded-lg border transition-colors"
+                onClick={scrollNext}
+                className="border-border hover:border-point flex size-8 items-center justify-center rounded-lg border transition-colors cursor-pointer active:scale-95"
               >
                 <ChevronRight className="size-4" />
               </button>
             </div>
           </div>
-          <div
-            ref={carouselRef}
-            onClickCapture={suppressClickAfterDrag}
-            onPointerCancel={endCarouselDrag}
-            onPointerDown={startCarouselDrag}
-            onPointerLeave={endCarouselDrag}
-            onPointerMove={moveCarouselDrag}
-            onPointerUp={endCarouselDrag}
-            className={cn(
-              "flex touch-pan-x [scroll-snap-type:x_mandatory] [scroll-padding-left:1.5rem] [scrollbar-width:none] gap-4 overflow-x-auto scroll-smooth px-6 pb-5 select-none [&::-webkit-scrollbar]:hidden",
-              isCarouselDragging ? "cursor-grabbing" : "cursor-grab",
-            )}
-          >
-            {carouselItems.map((o) => (
-              <div
-                key={o.id}
-                className="w-[min(300px,calc(100vw-4.5rem))] shrink-0 [scroll-snap-align:start]"
-              >
-                <JobCard job={o} />
-              </div>
-            ))}
+          <div className="w-full overflow-hidden px-4 sm:px-5 pb-5 pt-1 select-none" ref={emblaRef}>
+            <div className="flex gap-4 items-stretch">
+              {carouselItems.map((o) => (
+                <div
+                  key={o.id}
+                  className="flex-[0_0_280px] sm:flex-[0_0_310px] min-w-0 shrink-0"
+                >
+                  <JobCard job={o} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -414,7 +373,7 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors",
+        "rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors cursor-pointer",
         active
           ? "bg-primary text-primary-foreground"
           : "border-border bg-card text-muted-foreground hover:border-point hover:text-point-hover border",
@@ -439,7 +398,7 @@ function SortButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-md px-2.5 py-1 text-xs font-bold transition-colors",
+        "rounded-md px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer",
         active
           ? "bg-point-soft text-point-hover"
           : "text-muted-foreground hover:text-foreground",
@@ -465,10 +424,33 @@ function Pagination({
       window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // 모바일 화면 깨짐 방지: 스마트 페이지네이션 축약 알고리즘
+  const paginationRange = useMemo(() => {
+    if (pageCount <= 5) {
+      return Array.from({ length: pageCount }, (_, i) => i + 1);
+    }
+    const range: (number | string)[] = [];
+    const delta = 1;
+    let last = 0;
+
+    for (let i = 1; i <= pageCount; i++) {
+      if (i === 1 || i === pageCount || (i >= page - delta && i <= page + delta)) {
+        if (last && i - last === 2) {
+          range.push(last + 1);
+        } else if (last && i - last > 2) {
+          range.push("...");
+        }
+        range.push(i);
+        last = i;
+      }
+    }
+    return range;
+  }, [page, pageCount]);
+
   return (
     <nav
       aria-label="공고 페이지"
-      className="mt-8 flex items-center justify-center gap-1.5"
+      className="mt-8 flex items-center justify-center gap-1.5 flex-wrap"
     >
       <PagerArrow
         label="이전 페이지"
@@ -477,22 +459,37 @@ function Pagination({
       >
         <ChevronLeft className="size-4" />
       </PagerArrow>
-      {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-        <button
-          key={p}
-          type="button"
-          aria-current={p === page ? "page" : undefined}
-          onClick={() => go(p)}
-          className={cn(
-            "h-9 min-w-9 rounded-[10px] px-2 text-sm font-bold tabular-nums transition-colors",
-            p === page
-              ? "bg-primary text-primary-foreground"
-              : "border-border bg-card text-muted-foreground hover:border-point hover:text-point-hover border",
-          )}
-        >
-          {p}
-        </button>
-      ))}
+
+      {paginationRange.map((p, idx) => {
+        if (p === "...") {
+          return (
+            <span
+              key={`ellipsis-${idx}`}
+              className="px-1.5 text-xs text-muted-foreground select-none"
+            >
+              ...
+            </span>
+          );
+        }
+        const pageNum = p as number;
+        return (
+          <button
+            key={pageNum}
+            type="button"
+            aria-current={pageNum === page ? "page" : undefined}
+            onClick={() => go(pageNum)}
+            className={cn(
+              "h-8 min-w-8 sm:h-9 sm:min-w-9 rounded-[10px] px-2 text-xs sm:text-sm font-bold tabular-nums transition-colors cursor-pointer",
+              pageNum === page
+                ? "bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:border-point hover:text-point-hover border",
+            )}
+          >
+            {pageNum}
+          </button>
+        );
+      })}
+
       <PagerArrow
         label="다음 페이지"
         disabled={page === pageCount}
@@ -521,7 +518,7 @@ function PagerArrow({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="border-border bg-card text-muted-foreground hover:border-point hover:text-point-hover flex size-9 items-center justify-center rounded-[10px] border transition-colors disabled:pointer-events-none disabled:opacity-40"
+      className="border-border bg-card text-muted-foreground hover:border-point hover:text-point-hover flex size-8 sm:size-9 items-center justify-center rounded-[10px] border transition-colors cursor-pointer disabled:pointer-events-none disabled:opacity-40"
     >
       {children}
     </button>
