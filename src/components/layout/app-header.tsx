@@ -13,24 +13,24 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
   const initial = name.charAt(0).toUpperCase();
 
   return (
-    <header className="border-border text-foreground flex h-15 shrink-0 items-center justify-between border-b bg-white px-5">
+    <header className="border-border text-foreground flex h-15 shrink-0 items-center justify-between border-b bg-white px-3.5 sm:px-5">
       {/* Logo + tagline */}
       <Link
         href="/"
-        className="focus-visible:ring-point flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-2"
+        className="focus-visible:ring-point flex items-center gap-2 rounded-md outline-none focus-visible:ring-2"
       >
         <BrandMark />
         <span className="flex flex-col leading-[1.05]">
           <span className="text-[17px] font-extrabold tracking-tight">
             I-OGO
           </span>
-          <span className="text-muted-foreground text-[10px] font-medium">
+          <span className="text-muted-foreground hidden text-[9.5px] font-medium min-[360px]:inline-block sm:text-[10px]">
             {t.tagline}
           </span>
         </span>
       </Link>
 
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-center gap-2 sm:gap-3.5">
         {user ? (
           <>
             {/* Notifications */}
@@ -72,10 +72,10 @@ export async function AppHeader({ hasUnread = true }: { hasUnread?: boolean }) {
             </Link>
           </>
         ) : (
-          <div className="flex items-center gap-1 text-[13px] font-semibold">
+          <div className="flex items-center gap-1 text-[12.5px] sm:text-[13px] font-semibold">
             <Link
               href="/login"
-              className="focus-visible:ring-point text-secondary-foreground hover:bg-secondary rounded-md px-2.5 py-1.5 transition-colors outline-none focus-visible:ring-2"
+              className="focus-visible:ring-point text-secondary-foreground hover:bg-secondary rounded-md px-2 py-1.5 transition-colors outline-none focus-visible:ring-2"
             >
               로그인
             </Link>
